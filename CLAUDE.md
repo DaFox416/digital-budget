@@ -33,3 +33,12 @@ FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic + PostgreSQL 16 · React 18 + T
 ## Comandos
 
 Se completarán conforme se cree la estructura (levantar con Docker, migraciones, pruebas, lint).
+
+**Backend** (desde `backend/`, con el venv `.venv` de Python 3.12):
+
+- Instalar: `py -3.12 -m venv .venv` y `.venv\Scripts\python -m pip install -e ".[dev]"`
+- Servidor local: `.venv\Scripts\python -m uvicorn app.main:app --reload` (docs en `http://localhost:8000/docs`)
+- Pruebas: `.venv\Scripts\python -m pytest`
+- Lint y formato: `.venv\Scripts\python -m ruff check .` y `.venv\Scripts\python -m ruff format .`
+- Tipos: `.venv\Scripts\python -m mypy app tests`
+- El cliente de pruebas usa `httpx2` (Starlette 1.10 marca `httpx` como obsoleto).
