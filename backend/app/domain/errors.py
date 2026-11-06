@@ -12,3 +12,7 @@ class InvalidMovementError(DomainError):
 
 class InvalidCreditConfigError(DomainError):
     pass
+
+
+class InvalidInstallmentPlanError(DomainError):
+    pass
