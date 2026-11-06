@@ -18,6 +18,7 @@
 | 2026-11-05 | Nombre del proyecto: **Digital Budget**. Repositorio `digital-budget`. |
 | 2026-11-05 | Advertencias en compras con tarjeta: nivel 1 si supera el disponible, nivel 2 si supera el saldo real. |
 | 2026-11-05 | Frontend con React 19 (no 18), Tailwind v4, TypeScript 7 y Node 26 LTS. Se mantiene ESLint en lugar de oxlint, que trae la plantilla de Vite. |
+| 2026-11-05 | TypeScript 6.0 en lugar de 7: typescript-eslint aún no soporta TS 7 (compilador en Go). Subir a TS 7 cuando lo soporte. |
 
 ## Resumen
 
@@ -292,7 +293,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] Crear repo en GitHub con la estructura del monorepo
 - [x] `docker-compose.yml` con Postgres, backend y frontend
 - [x] FastAPI con `/health` y Vite + React + TS + Tailwind arrancando
-- [ ] Ruff, mypy, ESLint, Prettier y pre-commit
+- [x] Ruff, mypy, ESLint, Prettier y pre-commit
 
 **Jue 5 · Cuentas y movimientos**
 

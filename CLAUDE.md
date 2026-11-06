@@ -57,4 +57,13 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Instalar: `npm install`
 - Servidor local: `npm run dev` (en `http://localhost:5173`; reenvía `/api` al backend en `:8000`, configurable con `API_PROXY_TARGET`)
 - Pruebas: `npm test` (una vez) o `npm run test:watch`
+- Lint: `npm run lint` · Formato: `npm run format` (o `format:check`) · Tipos: `npm run typecheck`
 - Build: `npm run build`
+- TypeScript 6.0, no 7: typescript-eslint aún no soporta TS 7.
+
+**pre-commit** (desde la raíz; se instala con las dependencias de desarrollo del backend):
+
+- Activar el hook de Git (una vez por clon): `backend\.venv\Scripts\pre-commit install`
+- Correr todo a mano: `backend\.venv\Scripts\pre-commit run --all-files`
+- Revisa formato y lint del backend (Ruff, mypy) y del frontend (Prettier, ESLint, tsc). Las versiones de Ruff y mypy en `.pre-commit-config.yaml` deben coincidir con las de `backend/pyproject.toml`.
+- Si cambias dependencias del frontend, recrea su contenedor: `docker compose up -d --build -V frontend` (`-V` renueva el volumen de `node_modules`).
