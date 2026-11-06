@@ -11,7 +11,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     // Inside Docker on Windows, file change events don't reach the container; poll instead.
-    watch: process.env.VITE_USE_POLLING === 'true' ? { usePolling: true, interval: 300 } : undefined,
+    watch:
+      process.env.VITE_USE_POLLING === 'true' ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       '/api': apiProxyTarget,
     },

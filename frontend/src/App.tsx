@@ -21,13 +21,17 @@ function App() {
     const controller = new AbortController()
 
     fetch('/api/v1/health', { signal: controller.signal })
-      .then((response) => setStatus(response.ok ? 'ok' : 'down'))
+      .then((response) => {
+        setStatus(response.ok ? 'ok' : 'down')
+      })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return
         setStatus('down')
       })
 
-    return () => controller.abort()
+    return () => {
+      controller.abort()
+    }
   }, [])
 
   return (
