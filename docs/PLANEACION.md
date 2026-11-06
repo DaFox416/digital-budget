@@ -290,7 +290,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 **Mié 4 · Base del proyecto**
 
 - [x] Crear repo en GitHub con la estructura del monorepo
-- [ ] `docker-compose.yml` con Postgres, backend y frontend
+- [x] `docker-compose.yml` con Postgres, backend y frontend
 - [x] FastAPI con `/health` y Vite + React + TS + Tailwind arrancando
 - [ ] Ruff, mypy, ESLint, Prettier y pre-commit
 

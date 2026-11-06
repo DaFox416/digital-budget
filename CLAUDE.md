@@ -34,6 +34,14 @@ FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic + PostgreSQL 16 · React 19 + T
 
 Se completarán conforme se cree la estructura (levantar con Docker, migraciones, pruebas, lint).
 
+**Docker (forma principal de levantar la app)**, desde la raíz:
+
+- Levantar todo: `docker compose up` (o `-d` para segundo plano; `--build` si cambian dependencias)
+- Frontend `http://localhost:5173` · API docs `http://localhost:8000/docs` · Postgres `localhost:5432` (usuario, contraseña y BD: `budget`)
+- Logs: `docker compose logs -f backend` · Detener: `docker compose down` (`-v` borra también los datos de Postgres)
+- Comandos dentro de un contenedor: `docker compose exec backend pytest`, `docker compose exec db psql -U budget`
+- La recarga automática usa polling (Windows no propaga eventos de archivos a los contenedores).
+
 **Backend** (desde `backend/`, con el venv `.venv` de Python 3.12):
 
 - Instalar: `py -3.12 -m venv .venv` y `.venv\Scripts\python -m pip install -e ".[dev]"`
