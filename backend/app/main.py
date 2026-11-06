@@ -1,10 +1,25 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from collections.abc import Awaitable, Callable
 
-from app.api import health
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api import accounts, categories, health, movements
 from app.config import get_settings
+from app.domain.errors import DomainError
+from app.services.errors import ConflictError, NotFoundError
 
 API_PREFIX = "/api/v1"
+
+
+ExceptionHandler = Callable[[Request, Exception], Awaitable[JSONResponse]]
+
+
+def _error_handler(status_code: int) -> ExceptionHandler:
+    async def handler(_: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(status_code=status_code, content={"detail": str(exc)})
+
+    return handler
 
 
 def create_app() -> FastAPI:
@@ -18,7 +33,14 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(health.router, prefix=API_PREFIX)
+
+    # Business rule violations and missing resources become clean JSON errors
+    app.add_exception_handler(DomainError, _error_handler(status.HTTP_422_UNPROCESSABLE_CONTENT))
+    app.add_exception_handler(NotFoundError, _error_handler(status.HTTP_404_NOT_FOUND))
+    app.add_exception_handler(ConflictError, _error_handler(status.HTTP_409_CONFLICT))
+
+    for router in (health.router, accounts.router, categories.router, movements.router):
+        app.include_router(router, prefix=API_PREFIX)
     return app
 
 

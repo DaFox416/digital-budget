@@ -38,6 +38,7 @@ repos:
           - pydantic>=2.8,<3.0
           - pydantic-settings>=2.4,<3.0
           - sqlalchemy>=2.1,<2.2
+          - alembic>=1.20,<2.0
           - pytest>=8.3,<9.0
           - httpx2>=2.16,<3.0
 
