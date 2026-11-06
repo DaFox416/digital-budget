@@ -24,6 +24,7 @@
 | 2026-11-05 | SQLAlchemy síncrono (no async): más simple; FastAPI corre los endpoints síncronos en un threadpool. |
 | 2026-11-05 | Un usuario local sembrado por la migración inicial (`00000000-…-0001`) hasta tener registro y login. Las categorías precargadas se copian por usuario. |
 | 2026-11-05 | Se adelanta al día 5 una API mínima: `GET/POST /accounts`, `GET /categories`, `GET/POST /movements` y `POST /transfers`. |
+| 2026-11-05 | Una compra hecha el día de corte entra en ese mismo ciclo (el que cierra ese día), no en el siguiente. Confirmado con dos estados de cuenta reales de bancos distintos. El ciclo es inclusivo en el día de corte (regla 4) y no hace falta un campo de configuración para esto. |
 
 ## Resumen
 
@@ -99,7 +100,7 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 1. El dinero se guarda como `NUMERIC(12,2)` en Postgres y `Decimal` en Python; nunca `float`.
 2. Saldo de débito/efectivo = saldo inicial + ingresos − gastos ± transferencias.
 3. Deuda de crédito = cargos − pagos. Crédito disponible = límite − deuda − mensualidades MSI aún no facturadas.
-4. El ciclo de una tarjeta va del día siguiente al corte anterior hasta el día de corte, inclusive.
+4. El ciclo de una tarjeta va del día siguiente al corte anterior hasta el día de corte, inclusive: una compra hecha el día de corte entra en el ciclo que cierra ese día. Ejemplo con corte el 15: el ciclo va del 16 del mes anterior al 15; una compra del 15 de noviembre entra en el corte del 15 de noviembre y una del 16, en el del 15 de diciembre. (Confirmado con dos estados de cuenta reales.)
 5. Si el día de corte o de pago no existe en el mes (por ejemplo 31 en noviembre), se usa el último día del mes.
 6. Una compra a MSI ocupa el crédito completo de inmediato, pero solo su mensualidad entra en el pago de cada ciclo.
 7. Mensualidad = total ÷ meses, redondeada a centavos; la última absorbe la diferencia para que la suma cuadre exacta.
@@ -107,7 +108,9 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 9. Un pago de tarjeta es una transferencia de una cuenta de débito (o efectivo) a la cuenta de crédito.
 10. Los movimientos nunca se borran físicamente: se marcan como eliminados para poder deshacer.
 
-**Pendiente de confirmar con tus tarjetas reales:** si una compra hecha el día de corte entra en ese ciclo o en el siguiente, y si tu banco fija el pago por día del mes o por días después del corte. El modelo admite ambos con un campo de configuración.
+**Confirmado con tus tarjetas reales (2026-11-05):** una compra hecha el día de corte entra en ese mismo ciclo, según dos estados de cuenta de bancos distintos.
+
+**Pendiente de confirmar:** si tu banco fija la fecha límite de pago por día del mes (por ejemplo, el 5) o por días después del corte (por ejemplo, 20 días). El modelo admitirá ambas con un campo de configuración; se resuelve al empezar el día 6.
 
 ## Modo ahorro
 
@@ -310,7 +313,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 **Vie 6 · Ciclos de tarjeta de crédito**
 
 - [ ] Cálculo del ciclo, fecha de corte y fecha de pago
-- [ ] Pruebas de bordes: día 31, febrero, compra el día de corte, cambio de año
+- [ ] Pruebas de bordes: día 31, febrero, compra el día de corte (entra en ese ciclo), cambio de año
 - [ ] Pago de tarjeta y deuda/crédito disponible
 
 **Sáb 7 · MSI**
@@ -396,7 +399,8 @@ El mayor riesgo ahora es la interacción entre el modo ahorro y las tarjetas de 
 
 **Decisiones abiertas**
 
-- [ ] Regla de compras hechas el día de corte en tus bancos
+- [x] Regla de compras hechas el día de corte en tus bancos: entran en ese mismo ciclo (2026-11-05)
+- [ ] Fecha límite de pago: por día del mes o por días después del corte (al empezar el día 6)
 - [ ] Retiro anticipado de metas de ahorro y depósitos por encima del objetivo
 - [ ] Dominio para Digital Budget (y búsqueda de marca en MARCia antes de lanzar)
 - [ ] Plataforma de donación (se decide en la semana 3)
