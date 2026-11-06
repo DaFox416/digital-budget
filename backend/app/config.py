@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     environment: str = "local"
     cors_origins: list[str] = ["http://localhost:5173"]
+    database_url: str = "postgresql+psycopg://budget:budget@localhost:5432/budget"
 
 
 @lru_cache
