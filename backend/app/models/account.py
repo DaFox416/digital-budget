@@ -1,12 +1,16 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.enums import AccountType
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum
+
+if TYPE_CHECKING:
+    from app.models.credit_config import CreditConfig
 
 
 class Account(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -24,3 +28,9 @@ class Account(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     color: Mapped[str | None] = mapped_column(String(7))
     position: Mapped[int] = mapped_column(default=0)
     archived_at: Mapped[datetime | None]
+
+    # Only credit accounts have one; the service creates both in the same transaction.
+    # selectin: listing accounts loads every config in one extra query, not one per account.
+    credit_config: Mapped["CreditConfig | None"] = relationship(
+        back_populates="account", lazy="selectin", cascade="all, delete-orphan"
+    )

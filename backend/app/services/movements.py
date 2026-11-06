@@ -1,13 +1,10 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.domain.enums import MovementType
 from app.domain.movements import AccountRef, plan_transfer, signed_amounts
 from app.models import Account, Movement
@@ -15,6 +12,7 @@ from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
 from app.repositories import movements as movements_repo
 from app.schemas.movements import MovementCreate, TransferCreate
+from app.services.clock import today
 from app.services.errors import NotFoundError
 
 
@@ -24,11 +22,6 @@ class TransferResult:
     type: MovementType
     source: Movement
     destination: Movement
-
-
-def today() -> date:
-    """Today's date where the user lives, not where the server runs (Docker is in UTC)."""
-    return datetime.now(ZoneInfo(get_settings().timezone)).date()
 
 
 def _get_account(session: Session, user_id: uuid.UUID, account_id: uuid.UUID) -> Account:

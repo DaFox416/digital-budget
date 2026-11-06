@@ -26,6 +26,7 @@
 | 2026-11-05 | Se adelanta al día 5 una API mínima: `GET/POST /accounts`, `GET /categories`, `GET/POST /movements` y `POST /transfers`. |
 | 2026-11-05 | Una compra hecha el día de corte entra en ese mismo ciclo (el que cierra ese día), no en el siguiente. Confirmado con dos estados de cuenta reales de bancos distintos. El ciclo es inclusivo en el día de corte (regla 4) y no hace falta un campo de configuración para esto. |
 | 2026-11-06 | La fecha límite de pago cambia según el banco, así que cada tarjeta elige una de dos formas: un día fijo del mes (por ejemplo, el 5) o un número de días después del corte (por ejemplo, 20). Se guarda como regla + valor en la configuración de crédito. |
+| 2026-11-06 | La configuración de crédito (límite, día de corte y regla de pago) es obligatoria al crear una cuenta de crédito y se rechaza en las demás. No se permiten tarjetas sin configurar para completarlas después: así no hay cálculos de ciclo erróneos. Se guarda en la tabla `credit_configs`, uno a uno con la cuenta. |
 
 ## Resumen
 
@@ -318,7 +319,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 - [x] Cálculo del ciclo, fecha de corte y fecha de pago
 - [x] Pruebas de bordes: día 31, febrero, compra el día de corte (entra en ese ciclo), cambio de año
-- [ ] Pago de tarjeta y deuda/crédito disponible
+- [x] Pago de tarjeta y deuda/crédito disponible (las mensualidades MSI se restan del disponible el día 7)
 
 **Sáb 7 · MSI**
 

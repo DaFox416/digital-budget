@@ -1,11 +1,31 @@
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUserId, SessionDep
-from app.schemas.accounts import AccountCreate, AccountRead
+from app.domain.cycles import CardCycle
+from app.schemas.accounts import AccountCreate, AccountRead, CardCycleRead, CreditRead
 from app.services import accounts as accounts_service
-from app.services.accounts import AccountWithBalance
+from app.services.accounts import AccountWithBalance, CreditSummary
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+
+def _cycle_read(cycle: CardCycle) -> CardCycleRead:
+    return CardCycleRead(start=cycle.start, cutoff=cycle.cutoff, payment_due=cycle.payment_due)
+
+
+def _credit_read(credit: CreditSummary | None) -> CreditRead | None:
+    if credit is None:
+        return None
+    config = credit.config
+    return CreditRead(
+        credit_limit=config.credit_limit,
+        cutoff_day=config.cutoff_day,
+        payment_due_rule=config.payment_due_rule,
+        payment_due_value=config.payment_due_value,
+        available=credit.available,
+        current_cycle=_cycle_read(credit.current_cycle),
+        last_statement=_cycle_read(credit.last_statement),
+    )
 
 
 def _to_read(item: AccountWithBalance) -> AccountRead:
@@ -18,6 +38,7 @@ def _to_read(item: AccountWithBalance) -> AccountRead:
         balance=item.balance,
         color=account.color,
         position=account.position,
+        credit=_credit_read(item.credit),
     )
 
 
