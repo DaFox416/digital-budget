@@ -20,6 +20,7 @@ dev = [
     "httpx2>=2.16,<3.0",
     "ruff>=0.6,<1.0",
     "mypy>=1.11,<2.0",
+    "pre-commit>=4.7,<5.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -40,3 +41,5 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "N"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+# Resolve `app` imports from backend/ even when mypy runs from the repo root (pre-commit)
+mypy_path = "$MYPY_CONFIG_FILE_DIR"

@@ -1,0 +1,62 @@
+# Runs automatically on `git commit` (after `pre-commit install`).
+# Run everything by hand: `pre-commit run --all-files`
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: tsconfig.*\.json$ # tsconfig files allow comments (JSONC)
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # --- Backend ---------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3 # keep in sync with ruff in backend/pyproject.toml
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.20.2 # keep in sync with mypy in backend/pyproject.toml
+    hooks:
+      - id: mypy
+        files: ^backend/
+        pass_filenames: false
+        args: [--config-file=backend/pyproject.toml, backend/app, backend/tests]
+        # mypy runs in its own isolated env, so it needs the libraries it type-checks against
+        additional_dependencies:
+          - fastapi>=0.115,<1.0
+          - pydantic>=2.8,<3.0
+          - pydantic-settings>=2.4,<3.0
+          - pytest>=8.3,<9.0
+          - httpx2>=2.16,<3.0
+
+  # --- Frontend (uses the tools installed in frontend/node_modules) ---------
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier (frontend)
+        entry: npm --prefix frontend run format:check
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+      - id: eslint
+        name: eslint (frontend)
+        entry: npm --prefix frontend run lint
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js)$
+        pass_filenames: false
+      - id: tsc
+        name: tsc (frontend)
+        entry: npm --prefix frontend run typecheck
+        language: system
+        files: ^frontend/.*\.(ts|tsx|json)$
+        pass_filenames: false
