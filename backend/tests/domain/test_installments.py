@@ -4,13 +4,14 @@ from decimal import Decimal
 import pytest
 
 from app.domain.cycles import CreditCycleConfig
-from app.domain.enums import PaymentDueRule
+from app.domain.enums import AccountType, PaymentDueRule
 from app.domain.errors import InvalidAmountError, InvalidInstallmentPlanError
 from app.domain.installments import (
     ScheduledInstallment,
     installment_schedule,
     pending_to_charge,
     split_installments,
+    validate_installment_account,
 )
 
 CUTOFF_15 = CreditCycleConfig(
@@ -141,3 +142,13 @@ class TestPendingToCharge:
         schedule = installment_schedule("1000", 3, date(2026, 11, 10), CUTOFF_15)
 
         assert pending_to_charge(schedule, date(2027, 6, 1)) == Decimal("0.00")
+
+
+class TestValidateInstallmentAccount:
+    def test_credit_cards_are_allowed(self) -> None:
+        validate_installment_account(AccountType.CREDIT)
+
+    @pytest.mark.parametrize("account_type", [AccountType.DEBIT, AccountType.CASH])
+    def test_other_accounts_are_rejected(self, account_type: AccountType) -> None:
+        with pytest.raises(InvalidInstallmentPlanError):
+            validate_installment_account(account_type)

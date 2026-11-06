@@ -2,7 +2,14 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, String
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.enums import MovementType
@@ -17,6 +24,8 @@ class Movement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         # The account and category must belong to the same user as the movement
         ForeignKeyConstraint(["account_id", "user_id"], ["accounts.id", "accounts.user_id"]),
         ForeignKeyConstraint(["category_id", "user_id"], ["categories.id", "categories.user_id"]),
+        # Lets installment plans reference (id, user_id)
+        UniqueConstraint("id", "user_id"),
         # Last line of defense for rules that also live in app/domain
         CheckConstraint("real_amount <> 0", name="real_amount_not_zero"),
         CheckConstraint(

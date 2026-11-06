@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from app.domain.cycles import CreditCycleConfig, cycle_for
+from app.domain.enums import AccountType
 from app.domain.errors import InvalidAmountError, InvalidInstallmentPlanError
 from app.domain.money import CENT, to_money
 
@@ -31,6 +32,11 @@ class ScheduledInstallment:
     amount: Decimal
     cutoff: date  # cutoff of the statement it's billed in
     charged_on: date  # when it reduces the user's available money
+
+
+def validate_installment_account(account_type: AccountType) -> None:
+    if account_type is not AccountType.CREDIT:
+        raise InvalidInstallmentPlanError("Only credit cards can have purchases in installments")
 
 
 def validate_months(months: int) -> None:

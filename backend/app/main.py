@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import accounts, categories, health, movements
+from app.api import accounts, cards, categories, health, installment_plans, movements
 from app.config import get_settings
 from app.domain.errors import DomainError
 from app.services.errors import ConflictError, NotFoundError
@@ -39,7 +39,14 @@ def create_app() -> FastAPI:
     app.add_exception_handler(NotFoundError, _error_handler(status.HTTP_404_NOT_FOUND))
     app.add_exception_handler(ConflictError, _error_handler(status.HTTP_409_CONFLICT))
 
-    for router in (health.router, accounts.router, categories.router, movements.router):
+    for router in (
+        health.router,
+        accounts.router,
+        categories.router,
+        movements.router,
+        installment_plans.router,
+        cards.router,
+    ):
         app.include_router(router, prefix=API_PREFIX)
     return app
 

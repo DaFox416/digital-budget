@@ -31,7 +31,7 @@ class AccountWithBalance:
     credit: CreditSummary | None
 
 
-def _cycle_config(config: CreditConfig) -> CreditCycleConfig:
+def cycle_config(config: CreditConfig) -> CreditCycleConfig:
     return CreditCycleConfig(
         cutoff_day=config.cutoff_day,
         payment_due_rule=config.payment_due_rule,
@@ -44,12 +44,12 @@ def _with_balance(account: Account, balance: Decimal, on: date) -> AccountWithBa
     if config is None:
         return AccountWithBalance(account, balance, credit=None)
 
-    cycle_config = _cycle_config(config)
+    rules = cycle_config(config)
     credit = CreditSummary(
         config=config,
         available=credit_available(config.credit_limit, balance),
-        current_cycle=cycle_for(on, cycle_config),
-        last_statement=last_closed_cycle(on, cycle_config),
+        current_cycle=cycle_for(on, rules),
+        last_statement=last_closed_cycle(on, rules),
     )
     return AccountWithBalance(account, balance, credit)
 
