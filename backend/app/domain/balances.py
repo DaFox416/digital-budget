@@ -16,3 +16,12 @@ def account_balance(initial_balance: Decimal, movement_amounts: Iterable[Decimal
 def credit_debt(balance: Decimal) -> Decimal:
     """What you owe on a credit account. Negative means the card has a credit in your favor."""
     return to_money(-balance)
+
+
+def credit_available(credit_limit: Decimal, balance: Decimal) -> Decimal:
+    """Credit you can still use: limit - debt.
+
+    A credit in your favor (positive balance) adds to it. Unbilled MSI installments
+    will also be subtracted once installment plans exist (day 7).
+    """
+    return to_money(credit_limit - credit_debt(balance))

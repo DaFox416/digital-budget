@@ -8,3 +8,7 @@ class InvalidAmountError(DomainError):
 
 class InvalidMovementError(DomainError):
     pass
+
+
+class InvalidCreditConfigError(DomainError):
+    pass
