@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-06
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -25,6 +25,7 @@
 | 2026-11-05 | Un usuario local sembrado por la migración inicial (`00000000-…-0001`) hasta tener registro y login. Las categorías precargadas se copian por usuario. |
 | 2026-11-05 | Se adelanta al día 5 una API mínima: `GET/POST /accounts`, `GET /categories`, `GET/POST /movements` y `POST /transfers`. |
 | 2026-11-05 | Una compra hecha el día de corte entra en ese mismo ciclo (el que cierra ese día), no en el siguiente. Confirmado con dos estados de cuenta reales de bancos distintos. El ciclo es inclusivo en el día de corte (regla 4) y no hace falta un campo de configuración para esto. |
+| 2026-11-06 | La fecha límite de pago cambia según el banco, así que cada tarjeta elige una de dos formas: un día fijo del mes (por ejemplo, el 5) o un número de días después del corte (por ejemplo, 20). Se guarda como regla + valor en la configuración de crédito. |
 
 ## Resumen
 
@@ -86,7 +87,7 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 | Entidad | Campos clave | Notas |
 | --- | --- | --- |
 | Cuenta | tipo (débito, efectivo, crédito, ahorro), nombre, saldo inicial, color | Una tabla con campos opcionales para crédito; ahorro: "Sobrante" por defecto y cuentas con meta (monto objetivo, estado) |
-| Config. de crédito | límite, día de corte, día de pago | Uno a uno con la cuenta de crédito |
+| Config. de crédito | límite, día de corte, regla de pago (día fijo o días después del corte) y su valor | Uno a uno con la cuenta de crédito |
 | Movimiento | cuenta, tipo, monto real, monto contable, fecha, descripción, categoría, apartado | Tipos: gasto, ingreso, transferencia, pago de tarjeta. Monto contable = real en modo simple |
 | Transferencia | grupo que une dos movimientos | Sale de una cuenta y entra a otra en una sola transacción de BD |
 | Apartado | nombre, monto, fecha esperada, recurrencia, estado | Gasto contemplado del modo ahorro; se consume al pagarlo |
@@ -110,7 +111,10 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 
 **Confirmado con tus tarjetas reales (2026-11-05):** una compra hecha el día de corte entra en ese mismo ciclo, según dos estados de cuenta de bancos distintos.
 
-**Pendiente de confirmar:** si tu banco fija la fecha límite de pago por día del mes (por ejemplo, el 5) o por días después del corte (por ejemplo, 20 días). El modelo admitirá ambas con un campo de configuración; se resuelve al empezar el día 6.
+**Fecha límite de pago (2026-11-06):** depende del banco, así que cada tarjeta elige una de dos reglas:
+
+- Día fijo: la primera fecha con ese día del mes posterior al corte (con la regla 5 si el día no existe). Con corte el 15 y pago el 5, el corte del 15 de noviembre se paga el 5 de diciembre.
+- Días después del corte: la fecha de corte más N días naturales. Con corte el 15 y 20 días, el corte del 15 de noviembre se paga el 5 de diciembre.
 
 ## Modo ahorro
 
@@ -312,8 +316,8 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Vie 6 · Ciclos de tarjeta de crédito**
 
-- [ ] Cálculo del ciclo, fecha de corte y fecha de pago
-- [ ] Pruebas de bordes: día 31, febrero, compra el día de corte (entra en ese ciclo), cambio de año
+- [x] Cálculo del ciclo, fecha de corte y fecha de pago
+- [x] Pruebas de bordes: día 31, febrero, compra el día de corte (entra en ese ciclo), cambio de año
 - [ ] Pago de tarjeta y deuda/crédito disponible
 
 **Sáb 7 · MSI**
@@ -400,7 +404,7 @@ El mayor riesgo ahora es la interacción entre el modo ahorro y las tarjetas de 
 **Decisiones abiertas**
 
 - [x] Regla de compras hechas el día de corte en tus bancos: entran en ese mismo ciclo (2026-11-05)
-- [ ] Fecha límite de pago: por día del mes o por días después del corte (al empezar el día 6)
+- [x] Fecha límite de pago: cada tarjeta elige día fijo del mes o días después del corte (2026-11-06)
 - [ ] Retiro anticipado de metas de ahorro y depósitos por encima del objetivo
 - [ ] Dominio para Digital Budget (y búsqueda de marca en MARCia antes de lanzar)
 - [ ] Plataforma de donación (se decide en la semana 3)
