@@ -117,6 +117,8 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 
 **Confirmado con tus tarjetas reales (2026-11-05):** una compra hecha el día de corte entra en ese mismo ciclo, según dos estados de cuenta de bancos distintos.
 
+**Límites conocidos del estado de cuenta (2026-11-06):** la regla 8 no arrastra saldo de ciclos que no pagaste completos, y el saldo inicial de una tarjeta no cae en ningún ciclo. Para el demo basta; se revisa en la v1.
+
 **Fecha límite de pago (2026-11-06):** depende del banco, así que cada tarjeta elige una de dos reglas:
 
 - Día fijo: la primera fecha con ese día del mes posterior al corte (con la regla 5 si el día no existe). Con corte el 15 y pago el 5, el corte del 15 de noviembre se paga el 5 de diciembre.
@@ -336,8 +338,8 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Sáb 7 · MSI**
 
-- [ ] Plan MSI y generación de mensualidades con redondeo exacto
-- [ ] Endpoint de resumen del ciclo (`/cards/{id}/statement`)
+- [x] Plan MSI y generación de mensualidades con redondeo exacto
+- [x] Endpoint de resumen del ciclo (`/cards/{id}/statement`)
 
 **Dom 8 · Respiro o colchón** para lo que se haya atrasado.
 
