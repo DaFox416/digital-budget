@@ -343,11 +343,23 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Dom 8 · Respiro o colchón** para lo que se haya atrasado.
 
+**Estado al cerrar la sesión del 2026-11-06:** días 4 a 7 completos (el 6 y el 7 se hicieron el mismo 6 de noviembre, así que hay un día de adelanto). Pendientes menores: la base de desarrollo tiene una tarjeta de prueba "Smoke TDC" con una compra a 3 MSI (se borra con `docker compose down -v`); las advertencias de nivel 1 y 2 en MSI se definen el día 10.
+
 **Lun 9 · API completa y primera pantalla**
+
+> **Propuesta detallada (2026-11-06), pendiente de aprobar al empezar el día:**
+>
+> - `PATCH /movements/{id}`: en gastos e ingresos se editan monto, contable, fecha, descripción y categoría (cambiar cuenta o tipo = borrar y capturar de nuevo). En transferencias y pagos de tarjeta se editan las dos partes juntas (monto, fecha, descripción). Las compras a MSI no se editan por ahora (adelantar o liquidar es de la v1).
+> - `DELETE /movements/{id}` (borrado lógico) y `POST /movements/{id}/restore` (deshacer). Borrar una transferencia borra sus dos partes; borrar una compra a MSI saca sus mensualidades del estado de cuenta.
+> - `GET /summary` v1: saldo real, deuda de tarjetas, MSI por cargar y próximo pago de cada tarjeta. Disponible, apartado, ahorros y sobrante se agregan el día 10.
+> - Frontend: tipos con `openapi-typescript` + llamadas con `openapi-fetch` (`npm run api:types`, archivo generado en el repo), TanStack Query y `formatMoney` sin `float`, con pruebas en Vitest.
+> - Primera pantalla: cifras del resumen arriba, una tarjeta por cuenta (en crédito: disponible y próximo pago) y lista de movimientos. Responsiva, sin menús.
+> - Al cerrar el día: sesión de pruebas manuales con datos reales (guion en `docs/PRUEBAS-MANUALES.md`): dar de alta cuentas reales, capturar un ciclo cerrado (con MSI si hay), comparar `/cards/{id}/statement` con el estado de cuenta del banco, probar editar/borrar/deshacer y anotar diferencias. Antes, agregar a CLAUDE.md un comando de respaldo con `pg_dump`, porque `docker compose down -v` borraría esos datos.
 
 - [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar ya existen desde el día 5; faltan editar, borrado lógico y `/summary`)
 - [ ] Generar cliente TypeScript desde OpenAPI
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
+- [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
 
 **Mar 10 · Modo ahorro en el dominio**
 
