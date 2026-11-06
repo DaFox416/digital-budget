@@ -19,6 +19,11 @@
 | 2026-11-05 | Advertencias en compras con tarjeta: nivel 1 si supera el disponible, nivel 2 si supera el saldo real. |
 | 2026-11-05 | Frontend con React 19 (no 18), Tailwind v4, TypeScript 7 y Node 26 LTS. Se mantiene ESLint en lugar de oxlint, que trae la plantilla de Vite. |
 | 2026-11-05 | TypeScript 6.0 en lugar de 7: typescript-eslint aún no soporta TS 7 (compilador en Go). Subir a TS 7 cuando lo soporte. |
+| 2026-11-05 | Montos con signo en la BD: negativo cuando el dinero sale de la cuenta, positivo cuando entra. La API recibe montos positivos y el tipo decide el signo. En crédito, saldo negativo = deuda. |
+| 2026-11-05 | IDs UUID en todas las tablas (facilita la actualización optimista: el frontend puede generar el ID). |
+| 2026-11-05 | SQLAlchemy síncrono (no async): más simple; FastAPI corre los endpoints síncronos en un threadpool. |
+| 2026-11-05 | Un usuario local sembrado por la migración inicial (`00000000-…-0001`) hasta tener registro y login. Las categorías precargadas se copian por usuario. |
+| 2026-11-05 | Se adelanta al día 5 una API mínima: `GET/POST /accounts`, `GET /categories`, `GET/POST /movements` y `POST /transfers`. |
 
 ## Resumen
 
@@ -297,9 +302,10 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Jue 5 · Cuentas y movimientos**
 
-- [ ] Modelos de cuenta, movimiento (con monto real y contable) y categoría + primera migración
-- [ ] Cálculo de saldos en `domain/` con pruebas
-- [ ] Transferencias como dos movimientos en una transacción
+- [x] Modelos de cuenta, movimiento (con monto real y contable) y categoría + primera migración
+- [x] Cálculo de saldos en `domain/` con pruebas
+- [x] Transferencias como dos movimientos en una transacción
+- [x] (Adelantado del día 9) API mínima: crear y listar cuentas, categorías, movimientos y transferencias
 
 **Vie 6 · Ciclos de tarjeta de crédito**
 
@@ -316,7 +322,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Lun 9 · API completa y primera pantalla**
 
-- [ ] CRUD de cuentas y movimientos + `/summary`
+- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar ya existen desde el día 5; faltan editar, borrado lógico y `/summary`)
 - [ ] Generar cliente TypeScript desde OpenAPI
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
 

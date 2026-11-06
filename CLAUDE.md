@@ -51,6 +51,10 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Tipos: `.venv\Scripts\python -m mypy app tests`
 - El cliente de pruebas usa `httpx2` (Starlette 1.10 marca `httpx` como obsoleto).
 - Todas las rutas viven bajo `/api/v1` (por ejemplo `/api/v1/health`).
+- Migraciones: `.venv\Scripts\alembic upgrade head`; nueva migración tras cambiar modelos: `.venv\Scripts\alembic revision --autogenerate -m "describe change"` (revisar siempre el archivo generado); verificar que modelos y migraciones coinciden: `.venv\Scripts\alembic check`. En Docker, el backend aplica las migraciones al arrancar.
+- Las pruebas de API necesitan el Postgres de Docker; usan la BD `budget_test` (se crea y migra sola, y cada prueba se revierte).
+- Capas: `api/` (HTTP) → `services/` (casos de uso, `commit`) → `domain/` (reglas puras) y `repositories/` (consultas, siempre filtradas por `user_id`).
+- Si `backend/app` importa una librería nueva, agrégala también a `additional_dependencies` del hook de mypy en `.pre-commit-config.yaml`.
 
 **Frontend** (desde `frontend/`, Node 26):
 
