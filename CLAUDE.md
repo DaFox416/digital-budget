@@ -20,8 +20,8 @@ Lee la planeación antes de proponer o implementar algo. Respeta el "Registro de
 - Dinero: `NUMERIC(12,2)` en Postgres y `Decimal` en Python. Nunca `float`. En el frontend, montos como string o centavos enteros.
 - Las reglas de negocio viven en `backend/app/domain/` como Python puro, sin FastAPI ni SQLAlchemy, y siempre con pruebas.
 - Invariante del modo ahorro, probado en cada operación:
-  `saldo real = disponible + apartado + deuda de tarjetas + ahorros con meta + sobrante`
-- Todo movimiento guarda monto real y monto contable (iguales en modo simple).
+  `saldo real = disponible + apartado + deuda de tarjetas + ahorros con meta + sobrante − MSI por cargar`
+- Todo movimiento guarda monto real y monto contable (iguales en modo simple); excepción: el gasto de una compra a MSI tiene contable 0 y el contable vive en sus mensualidades.
 - Borrado lógico de movimientos; nunca borrado físico.
 - `user_id` en todas las tablas desde el inicio.
 - Sin dependencias externas de pago; todo corre en local con Docker.

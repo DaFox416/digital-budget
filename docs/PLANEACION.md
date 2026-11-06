@@ -27,6 +27,11 @@
 | 2026-11-05 | Una compra hecha el día de corte entra en ese mismo ciclo (el que cierra ese día), no en el siguiente. Confirmado con dos estados de cuenta reales de bancos distintos. El ciclo es inclusivo en el día de corte (regla 4) y no hace falta un campo de configuración para esto. |
 | 2026-11-06 | La fecha límite de pago cambia según el banco, así que cada tarjeta elige una de dos formas: un día fijo del mes (por ejemplo, el 5) o un número de días después del corte (por ejemplo, 20). Se guarda como regla + valor en la configuración de crédito. |
 | 2026-11-06 | La configuración de crédito (límite, día de corte y regla de pago) es obligatoria al crear una cuenta de crédito y se rechaza en las demás. No se permiten tarjetas sin configurar para completarlas después: así no hay cálculos de ciclo erróneos. Se guarda en la tabla `credit_configs`, uno a uno con la cuenta. |
+| 2026-11-06 | MSI y disponible: el crédito disponible de la tarjeta baja por el total el día de la compra, pero el disponible del usuario baja mensualidad por mensualidad, al inicio de cada ciclo, con su monto contable (el redondeo va a Sobrante). El gasto de la compra guarda real = −total y contable = 0 (excepción a "contable = real en modo simple"); el contable vive en cada mensualidad, que no es un movimiento. |
+| 2026-11-06 | Séptima cifra del modo ahorro: **MSI por cargar** (mensualidades aún no descontadas del disponible). Invariante: saldo real = disponible + apartado + deuda de tarjetas + ahorros con meta + sobrante − MSI por cargar. |
+| 2026-11-06 | Cifras principales en pantalla: saldo real, disponible, deuda de tarjetas y MSI por cargar. Apartado, ahorros con meta y sobrante se muestran como detalle secundario. |
+| 2026-11-06 | La primera mensualidad MSI cae en el ciclo de la compra y se carga al disponible ese mismo día; las demás, el día siguiente al corte anterior. Sin procesos programados: cada mensualidad guarda su fecha de cargo. |
+| 2026-11-06 | Plazos MSI de 3 a 48 meses. En el frontend se muestran primero 3, 6, 9 y 12. |
 
 ## Resumen
 
@@ -93,7 +98,7 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 | Transferencia | grupo que une dos movimientos | Sale de una cuenta y entra a otra en una sola transacción de BD |
 | Apartado | nombre, monto, fecha esperada, recurrencia, estado | Gasto contemplado del modo ahorro; se consume al pagarlo |
 | Plan MSI | cuenta, monto total, meses, fecha de compra | Genera una mensualidad por ciclo |
-| Mensualidad MSI | plan, número, monto, ciclo asignado | Se calcula al crear el plan |
+| Mensualidad MSI | plan, número, monto, monto contable, fecha de corte, fecha de cargo al disponible | Se calcula al crear el plan; no es un movimiento |
 | Categoría | nombre, ícono | Precargadas; el usuario puede agregar |
 | Preferencias | modo (simple o ahorro), múltiplo de redondeo | Una por usuario |
 
@@ -101,10 +106,10 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 
 1. El dinero se guarda como `NUMERIC(12,2)` en Postgres y `Decimal` en Python; nunca `float`.
 2. Saldo de débito/efectivo = saldo inicial + ingresos − gastos ± transferencias.
-3. Deuda de crédito = cargos − pagos. Crédito disponible = límite − deuda − mensualidades MSI aún no facturadas.
+3. Deuda de crédito = cargos − pagos, incluido el total de las compras a MSI. Crédito disponible = límite − deuda.
 4. El ciclo de una tarjeta va del día siguiente al corte anterior hasta el día de corte, inclusive: una compra hecha el día de corte entra en el ciclo que cierra ese día. Ejemplo con corte el 15: el ciclo va del 16 del mes anterior al 15; una compra del 15 de noviembre entra en el corte del 15 de noviembre y una del 16, en el del 15 de diciembre. (Confirmado con dos estados de cuenta reales.)
 5. Si el día de corte o de pago no existe en el mes (por ejemplo 31 en noviembre), se usa el último día del mes.
-6. Una compra a MSI ocupa el crédito completo de inmediato, pero solo su mensualidad entra en el pago de cada ciclo.
+6. Una compra a MSI ocupa el crédito completo de inmediato (se registra como un gasto por el total), pero solo su mensualidad entra en el pago de cada ciclo. La primera mensualidad cae en el ciclo de la compra. Plazos de 3 a 48 meses.
 7. Mensualidad = total ÷ meses, redondeada a centavos; la última absorbe la diferencia para que la suma cuadre exacta.
 8. Pago para no generar intereses = cargos normales del ciclo cerrado + mensualidades MSI de ese ciclo − pagos hechos después del corte.
 9. Un pago de tarjeta es una transferencia de una cuenta de débito (o efectivo) a la cuenta de crédito.
@@ -121,7 +126,7 @@ El corazón del proyecto es la tarjeta de crédito: un ciclo de corte, una fecha
 
 Un modo opcional que separa el dinero que tienes del dinero que de verdad puedes gastar. Con $5,000 en el banco y la luz de $500 ya contemplada, tu disponible es $4,500.
 
-**Seis cifras en pantalla**
+**Siete cifras**
 
 | Cifra | Qué es | En el ejemplo |
 | --- | --- | --- |
@@ -131,12 +136,17 @@ Un modo opcional que separa el dinero que tienes del dinero que de verdad puedes
 | Disponible | Lo que puedes gastar sin tocar lo apartado, lo ahorrado ni lo que debes | $4,500.00 |
 | Sobrante | Saldo a favor que generan tus redondeos, en la cuenta "Sobrante" | $0.00 |
 | Ahorros con meta | Lo depositado en tus cuentas de ahorro con objetivo | $0.00 |
+| MSI por cargar | Mensualidades MSI que aún no se descuentan de tu disponible (ya están dentro de la deuda) | $0.00 |
 
-Las seis siempre cuadran (invariante que se prueba en cada operación):
+En pantalla, las cuatro principales son saldo real, disponible, deuda de tarjetas y MSI por cargar; apartado, ahorros con meta y sobrante van como detalle.
+
+Las siete siempre cuadran (invariante que se prueba en cada operación):
 
 ```
-Saldo real = Disponible + Apartado + Deuda de tarjetas + Ahorros con meta + Sobrante
+Saldo real = Disponible + Apartado + Deuda de tarjetas + Ahorros con meta + Sobrante − MSI por cargar
 ```
+
+El invariante no suma deudas a tu dinero: reparte tu saldo real en partes. Despejado: Disponible = Saldo real − Apartado − (Deuda − MSI por cargar) − Ahorros − Sobrante. Tu dinero neto sería Saldo real − Deuda de tarjetas.
 
 **Monto real y monto contable**
 
@@ -157,7 +167,7 @@ Cada movimiento guarda dos montos: el real, que es lo que se movió en el banco 
 2. Al capturar, la app propone el monto contable redondeando al múltiplo que elijas (10 por defecto); lo puedes cambiar a mano.
 3. Un apartado tiene nombre, monto y fecha esperada, y puede repetirse (luz cada dos meses). Pagarlo consume el apartado, no el disponible; la diferencia va al sobrante.
 4. Una compra con tarjeta de crédito funciona igual que con débito para el disponible: baja por el monto contable. El monto real baja el crédito disponible de la tarjeta y sube su deuda; las cuentas de débito no cambian hasta que pagas.
-5. Las compras a MSI siguen la misma regla con el monto total de la compra.
+5. Las compras a MSI no bajan el disponible por el total: cada mensualidad lo baja por su monto contable al inicio de su ciclo (la primera, el día de la compra) y la diferencia del redondeo va al sobrante. El total sí sube la deuda y baja el crédito disponible de la tarjeta desde el día de la compra. Mientras tanto, lo pendiente se ve en "MSI por cargar".
 6. Pagar la tarjeta es una transferencia de débito a crédito: bajan el saldo real y la deuda por igual; el disponible y el sobrante no cambian.
 7. La cuenta de ahorro "Sobrante" se crea de forma predeterminada y no se puede borrar. Ahí se acumula la diferencia entre montos reales y contables, y no cuenta en el disponible.
 8. El modo se activa por usuario. Los datos guardan ambos montos desde el día 1, así que cambiar de modo no pierde información.
@@ -172,6 +182,8 @@ El modo ahorro existe para no gastar dinero que no tienes. Por eso, al capturar 
 | 2 · Alerta | El monto real supera el saldo real de todas tus cuentas de débito y efectivo | Mensaje en rojo, más visible, y confirmar con un clic extra antes de guardar |
 
 Si se cumplen ambas, solo se muestra el nivel 2. Aplica a cualquier compra con tarjeta, cerca o lejos de la quincena, incluidas las MSI.
+
+**Por definir (día 10):** en MSI, propuesta de nivel 1 si el contable de la primera mensualidad supera el disponible, y nivel 2 si el total real supera el saldo real.
 
 **Cuentas de ahorro con meta**
 
@@ -202,7 +214,8 @@ La captura llega en dos fases: primero una convencional que funcione bien en web
 - En móvil el panel ocupa la pantalla y el campo de monto abre el teclado numérico del sistema.
 - En modo ahorro aparece un segundo campo, monto contable, ya precargado con el redondeo propuesto.
 - En compras con tarjeta se muestran las advertencias de nivel 1 o 2 antes de guardar.
-- Pantalla inicial con saldo real, disponible, apartado, deuda de tarjetas y sobrante; y cuánto pagar de cada tarjeta.
+- Pantalla inicial con saldo real, disponible, deuda de tarjetas y MSI por cargar (apartado, ahorros y sobrante como detalle); y cuánto pagar de cada tarjeta.
+- Al elegir plazo MSI se muestran primero 3, 6, 9 y 12 meses; se puede escribir cualquier plazo de 3 a 48.
 
 **Fase 2 (después de la v1) · propuesta preliminar, se detallará más adelante**
 
@@ -290,7 +303,7 @@ digital-budget/
 | `POST /installment-plans` | Crear compra a MSI y sus mensualidades |
 | `GET /cards/{id}/statement?cycle=` | Resumen del ciclo: cargos, MSI, pagado, por pagar, fechas |
 | `GET/POST/PATCH /commitments` | Apartados del modo ahorro |
-| `GET /summary` | Saldo real, disponible, apartado, deuda, sobrante y próximos pagos |
+| `GET /summary` | Las siete cifras del modo ahorro y próximos pagos |
 | `POST /savings-goals`, `/{id}/deposit`, `/{id}/withdraw` | Crear metas de ahorro, depositar y retirar al completarlas |
 | `GET/PATCH /preferences` | Modo simple o ahorro y múltiplo de redondeo |
 | `POST /auth/register`, `/auth/login` | Usuarios (v1, semana 1) |
@@ -319,7 +332,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 - [x] Cálculo del ciclo, fecha de corte y fecha de pago
 - [x] Pruebas de bordes: día 31, febrero, compra el día de corte (entra en ese ciclo), cambio de año
-- [x] Pago de tarjeta y deuda/crédito disponible (las mensualidades MSI se restan del disponible el día 7)
+- [x] Pago de tarjeta y deuda/crédito disponible (con MSI, la deuda incluye el total de la compra)
 
 **Sáb 7 · MSI**
 
@@ -339,7 +352,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [ ] Apartados, deuda de tarjetas y cuenta Sobrante en `domain/` con pruebas del invariante
 - [ ] Regla de advertencias de nivel 1 y 2 con pruebas
 - [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz
-- [ ] Endpoints `/commitments`, `/preferences` y `/summary` con las seis cifras
+- [ ] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras
 
 **Mié 11 · Captura convencional**
 
@@ -349,7 +362,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Jue 12 · Pantallas de saldos y tarjetas**
 
-- [ ] Inicio con saldo real, disponible, apartado, deuda y sobrante
+- [ ] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle)
 - [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
 - [ ] Diseño responsivo y prueba en el celular por la red local
 
@@ -397,7 +410,7 @@ El mayor riesgo ahora es la interacción entre el modo ahorro y las tarjetas de 
 | Riesgo | Mitigación |
 | --- | --- |
 | Las reglas de ciclo no coinciden con tu banco | Validar con tus estados de cuenta reales el viernes 6 |
-| El modo ahorro se descuadra | El invariante saldo real = disponible + apartado + deuda + ahorros + sobrante se prueba en cada operación |
+| El modo ahorro se descuadra | El invariante saldo real = disponible + apartado + deuda + ahorros + sobrante − MSI por cargar se prueba en cada operación |
 | Tarjetas de crédito y MSI complican el modo ahorro | Regla ya definida; cubrir el invariante con pruebas que incluyan deuda de tarjetas y MSI |
 | Curva de aprendizaje de React + TS | Empezar con componentes simples; nada de librerías de estado extra más allá de TanStack Query |
 | Manejar datos financieros de terceros | Sin datos bancarios sensibles; aviso de privacidad y exportación/borrado de datos antes de abrir a otros |
