@@ -28,7 +28,7 @@ Lee la planeación antes de proponer o implementar algo. Respeta el "Registro de
 
 ## Stack
 
-FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic + PostgreSQL 16 · React 18 + TypeScript + Vite + TanStack Query + Tailwind · pytest, Vitest, Playwright · Docker Compose · GitHub Actions.
+FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic + PostgreSQL 16 · React 19 + TypeScript + Vite + TanStack Query + Tailwind v4 · pytest, Vitest, Playwright · Docker Compose · GitHub Actions.
 
 ## Comandos
 
@@ -42,3 +42,11 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Lint y formato: `.venv\Scripts\python -m ruff check .` y `.venv\Scripts\python -m ruff format .`
 - Tipos: `.venv\Scripts\python -m mypy app tests`
 - El cliente de pruebas usa `httpx2` (Starlette 1.10 marca `httpx` como obsoleto).
+- Todas las rutas viven bajo `/api/v1` (por ejemplo `/api/v1/health`).
+
+**Frontend** (desde `frontend/`, Node 26):
+
+- Instalar: `npm install`
+- Servidor local: `npm run dev` (en `http://localhost:5173`; reenvía `/api` al backend en `:8000`, configurable con `API_PROXY_TARGET`)
+- Pruebas: `npm test` (una vez) o `npm run test:watch`
+- Build: `npm run build`

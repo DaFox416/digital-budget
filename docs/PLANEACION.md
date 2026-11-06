@@ -17,6 +17,7 @@
 | 2026-11-05 | Cuentas de ahorro con meta: se deposita desde el disponible; al completar la meta aparece "Retirar ahorro", que cierra la cuenta y pasa el total al disponible. |
 | 2026-11-05 | Nombre del proyecto: **Digital Budget**. Repositorio `digital-budget`. |
 | 2026-11-05 | Advertencias en compras con tarjeta: nivel 1 si supera el disponible, nivel 2 si supera el saldo real. |
+| 2026-11-05 | Frontend con React 19 (no 18), Tailwind v4, TypeScript 7 y Node 26 LTS. Se mantiene ESLint en lugar de oxlint, que trae la plantilla de Vite. |
 
 ## Resumen
 
@@ -58,7 +59,7 @@ FastAPI en el backend y React con TypeScript en el frontend: es la combinación 
 | Backend | Python 3.12 + FastAPI + Pydantic v2 | API moderna, async, documentación OpenAPI automática |
 | ORM y migraciones | SQLAlchemy 2.0 + Alembic | El estándar en Python; las migraciones se piden en casi cualquier puesto |
 | Base de datos | PostgreSQL 16 | La base relacional más pedida; transacciones y `NUMERIC` para dinero |
-| Frontend | React 18 + TypeScript + Vite | El framework con más demanda; TypeScript ya es requisito común |
+| Frontend | React 19 + TypeScript + Vite | El framework con más demanda; TypeScript ya es requisito común |
 | Estado del servidor | TanStack Query | Caché, reintentos y actualizaciones optimistas para que la captura se sienta instantánea |
 | Estilos | Tailwind CSS | Rápido para iterar en web y móvil con un solo código |
 | Cliente de API | Tipos generados desde OpenAPI (`openapi-typescript`) | Contrato tipado entre backend y frontend |
@@ -288,9 +289,9 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Mié 4 · Base del proyecto**
 
-- [ ] Crear repo en GitHub con la estructura del monorepo
+- [x] Crear repo en GitHub con la estructura del monorepo
 - [ ] `docker-compose.yml` con Postgres, backend y frontend
-- [ ] FastAPI con `/health` y Vite + React + TS + Tailwind arrancando
+- [x] FastAPI con `/health` y Vite + React + TS + Tailwind arrancando
 - [ ] Ruff, mypy, ESLint, Prettier y pre-commit
 
 **Jue 5 · Cuentas y movimientos**
