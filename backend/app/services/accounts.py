@@ -27,7 +27,7 @@ class CreditSummary:
 class AccountWithBalance:
     account: Account
     balance: Decimal
-    # Credit accounts only. None for credit accounts created before credit configs existed.
+    # Credit accounts only (their config is required); None for debit and cash
     credit: CreditSummary | None
 
 
