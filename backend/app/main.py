@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import accounts, cards, categories, health, installment_plans, movements
+from app.api import accounts, cards, categories, health, installment_plans, movements, summary
 from app.config import get_settings
 from app.domain.errors import DomainError
 from app.services.errors import ConflictError, NotFoundError
@@ -46,6 +46,7 @@ def create_app() -> FastAPI:
         movements.router,
         installment_plans.router,
         cards.router,
+        summary.router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app
