@@ -21,7 +21,7 @@ def credit_debt(balance: Decimal) -> Decimal:
 def credit_available(credit_limit: Decimal, balance: Decimal) -> Decimal:
     """Credit you can still use: limit - debt.
 
-    A credit in your favor (positive balance) adds to it. Unbilled MSI installments
-    will also be subtracted once installment plans exist (day 7).
+    A credit in your favor (positive balance) adds to it. MSI purchases are already in the
+    debt for their full total (one expense on the purchase date), so they need no extra step.
     """
     return to_money(credit_limit - credit_debt(balance))

@@ -51,7 +51,7 @@ class CreditRead(BaseModel):
     cutoff_day: int
     payment_due_rule: PaymentDueRule
     payment_due_value: int
-    # Limit - debt (unbilled MSI installments will be subtracted from day 7)
+    # Limit - debt; the debt includes the full total of MSI purchases
     available: Money
     # Cycle that today's purchases go into
     current_cycle: CardCycleRead
