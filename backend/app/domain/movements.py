@@ -88,3 +88,35 @@ def plan_transfer(
         raise InvalidAmountError("Amount must be greater than zero")
 
     return TransferPlan(movement_type=movement_type, source_amount=-value, destination_amount=value)
+
+
+def edit_amounts(
+    movement_type: MovementType,
+    account_type: AccountType,
+    current: SignedAmounts,
+    amount: Decimal | int | str | None = None,
+    accounting_amount: Decimal | int | str | None = None,
+) -> SignedAmounts:
+    """New signed amounts for an edited expense or income.
+
+    - Nothing sent: the amounts don't change.
+    - Only the amount: the accounting amount resets to it, like when creating a movement.
+      Keeping the old one could break savings mode rules (accounting below real in an expense).
+    - Only the accounting amount: the real amount is kept.
+    """
+    if amount is None and accounting_amount is None:
+        return current
+    real = abs(current.real_amount) if amount is None else amount
+    return signed_amounts(movement_type, account_type, real, accounting_amount)
+
+
+def edit_transfer_amounts(movement_type: MovementType, amount: Decimal | int | str) -> TransferPlan:
+    """New amounts for both legs of an edited transfer or card payment."""
+    if movement_type not in (MovementType.TRANSFER, MovementType.CARD_PAYMENT):
+        raise InvalidMovementError("Use edit_amounts for expenses and income")
+
+    value = to_money(amount)
+    if value <= 0:
+        raise InvalidAmountError("Amount must be greater than zero")
+
+    return TransferPlan(movement_type=movement_type, source_amount=-value, destination_amount=value)
