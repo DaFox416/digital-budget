@@ -4,7 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentUserId, SessionDep
-from app.schemas.movements import MovementCreate, MovementRead, TransferCreate, TransferRead
+from app.schemas.movements import (
+    MovementCreate,
+    MovementRead,
+    MovementUpdate,
+    TransferCreate,
+    TransferRead,
+)
 from app.services import movements as movements_service
 
 router = APIRouter(tags=["movements"])
@@ -28,6 +34,19 @@ def create_movement(
 ) -> MovementRead:
     """Record an expense or an income. Use POST /transfers to move money between accounts."""
     movement = movements_service.create_movement(session, user_id, data)
+    return MovementRead.model_validate(movement)
+
+
+@router.patch("/movements/{movement_id}")
+def update_movement(
+    movement_id: uuid.UUID, data: MovementUpdate, session: SessionDep, user_id: CurrentUserId
+) -> MovementRead:
+    """Edit a movement; fields left out don't change.
+
+    Editing either leg of a transfer or card payment changes both. MSI purchases can't be
+    edited yet (409). To change the account or the type, delete and record it again.
+    """
+    movement = movements_service.update_movement(session, user_id, movement_id, data)
     return MovementRead.model_validate(movement)
 
 

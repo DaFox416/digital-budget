@@ -34,6 +34,26 @@ class TransferCreate(BaseModel):
     description: Description = ""
 
 
+class MovementUpdate(BaseModel):
+    """Partial edit of a movement. Fields left out don't change.
+
+    Expenses and income can edit every field. Transfers and card payments edit `amount`,
+    `occurred_on` and `description`, and both legs change together. The account and the type
+    can't change: delete the movement and record it again.
+    """
+
+    # Unknown fields (account_id, type...) get a 422 instead of being silently ignored
+    model_config = ConfigDict(extra="forbid")
+
+    amount: PositiveMoney | None = None
+    # Left out with `amount`: it resets to the new amount, like when creating
+    accounting_amount: NonNegativeMoney | None = None
+    occurred_on: date | None = None
+    description: Description | None = None
+    # null removes the category; leaving it out keeps it
+    category_id: uuid.UUID | None = None
+
+
 class MovementRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
