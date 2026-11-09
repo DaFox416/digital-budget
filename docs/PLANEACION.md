@@ -42,6 +42,9 @@
 | 2026-11-09 | `PATCH /accounts/{id}` edita nombre (409 si ya existe), color (`null` lo quita), saldo inicial (para corregir errores de captura) y, en tarjetas, la configuración de crédito: los campos enviados se combinan con los actuales y se validan juntos. El tipo, la posición y archivar no se editan (422; reordenar y archivar son de la v1). |
 | 2026-11-09 | Cambiar el día de corte de una tarjeta recalcula la fecha de corte y de cargo de todas sus mensualidades MSI, incluidas las de compras borradas; los montos no cambian. Pensado para corregir errores: si un banco cambiara de verdad el día de corte, también se reescribirían los cortes pasados (se revisa en la v1). |
 | 2026-11-09 | En los servicios que editan, primero se valida todo y después se aplican los cambios, para que una edición rechazada no deje nada a medias. |
+| 2026-11-09 | Tipos del frontend generados con `openapi-typescript` (`npm run api:types`, con el backend levantado). `src/api/schema.d.ts` se sube al repo para compilar sin backend y ver en el diff cómo cambia el contrato. `openapi-typescript` 7 pide TS 5 como peer: un `overrides` acotado a ese paquete le da nuestro TS 6 (mejor que `--legacy-peer-deps`, que relaja todos los peers). Un chequeo en CI de que los tipos estén al día se evalúa con GitHub Actions en la v1. |
+| 2026-11-09 | Llamadas con `openapi-fetch` y TanStack Query. `unwrap()` convierte las respuestas con error en `ApiError` (`status`, `detail` de FastAPI como mensaje; los 422 juntan sus `msg`). Claves de caché centralizadas en `queryKeys` para que las mutaciones del día 11 invaliden lo necesario. Por defecto: `staleTime` 30 s y un reintento. Sin MSW por ahora: las pruebas simulan `fetch`. |
+| 2026-11-09 | `formatMoney` formatea el string de la API con `Intl.NumberFormat('es-MX', MXN)`, que trata los strings como decimales exactos (ES2023), sin pasar por `float`. Rechaza lo que no tenga forma de monto en lugar de mostrar `NaN` y muestra el cero negativo sin signo. |
 
 ## Resumen
 
@@ -368,7 +371,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 - [x] CRUD de movimientos + `/summary` (crear y listar desde el día 5; `PATCH`, `DELETE` y `restore` de movimientos y `GET /summary` hechos el 2026-11-09)
 - [x] `PATCH /accounts/{id}` (editar cuenta y su configuración de crédito), agregado el 2026-11-09 para poder corregir errores antes de las pruebas manuales con datos reales
-- [ ] Generar cliente TypeScript desde OpenAPI
+- [x] Generar cliente TypeScript desde OpenAPI (con TanStack Query y `formatMoney`, 2026-11-09)
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
 - [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
 
