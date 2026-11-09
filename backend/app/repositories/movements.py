@@ -28,15 +28,24 @@ def get_active(session: Session, user_id: uuid.UUID, movement_id: uuid.UUID) -> 
     return session.scalar(statement)
 
 
+def get_any(session: Session, user_id: uuid.UUID, movement_id: uuid.UUID) -> Movement | None:
+    """A movement of the user, deleted or not, or None. Used to restore."""
+    statement = select(Movement).where(Movement.id == movement_id, Movement.user_id == user_id)
+    return session.scalar(statement)
+
+
 def list_transfer_legs(
-    session: Session, user_id: uuid.UUID, transfer_group_id: uuid.UUID
+    session: Session,
+    user_id: uuid.UUID,
+    transfer_group_id: uuid.UUID,
+    include_deleted: bool = False,
 ) -> Sequence[Movement]:
-    """Both non-deleted legs of a transfer or card payment."""
+    """Both legs of a transfer or card payment; only non-deleted ones unless asked."""
     statement = select(Movement).where(
-        Movement.user_id == user_id,
-        Movement.transfer_group_id == transfer_group_id,
-        Movement.deleted_at.is_(None),
+        Movement.user_id == user_id, Movement.transfer_group_id == transfer_group_id
     )
+    if not include_deleted:
+        statement = statement.where(Movement.deleted_at.is_(None))
     return session.scalars(statement).all()
 
 

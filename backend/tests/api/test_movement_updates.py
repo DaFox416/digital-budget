@@ -1,12 +1,10 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from app.models import Movement
 from tests.api.helpers import balances, create_account
 
 
@@ -210,14 +208,8 @@ class TestNotEditable:
     def test_unknown_movement(self, client: TestClient) -> None:
         assert patch(client, str(uuid.uuid4()), description="x").status_code == 404
 
-    def test_deleted_movement(
-        self, client: TestClient, db_session: Session, cine: dict[str, Any]
-    ) -> None:
-        # No DELETE endpoint yet (next commit), so mark it deleted directly
-        movement = db_session.get(Movement, uuid.UUID(cine["id"]))
-        assert movement is not None
-        movement.deleted_at = datetime.now(UTC)
-        db_session.flush()
+    def test_deleted_movement(self, client: TestClient, cine: dict[str, Any]) -> None:
+        assert client.delete(f"/api/v1/movements/{cine['id']}").status_code == 204
 
         assert patch(client, cine["id"], description="x").status_code == 404
 

@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -129,11 +130,7 @@ def update_movement(
     else:
         _update_expense_or_income(session, user_id, movement, data, sent)
 
-    try:
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
+    _commit(session)
     return movement
 
 
@@ -196,3 +193,52 @@ def _update_transfer(
             leg.occurred_on = data.occurred_on
         if data.description is not None:
             leg.description = data.description
+
+
+def delete_movement(session: Session, user_id: uuid.UUID, movement_id: uuid.UUID) -> None:
+    """Soft delete: mark the movement (and the other leg of a transfer) as deleted.
+
+    An MSI purchase is deleted like any expense; its plan and installments stay, and statement
+    queries leave them out while the purchase is deleted, so restoring brings them back.
+    """
+    movement = movements_repo.get_active(session, user_id, movement_id)
+    if movement is None:
+        raise NotFoundError(f"Movement {movement_id} not found")
+
+    # One timestamp for every leg, so they read as a single deletion
+    deleted_at = datetime.now(UTC)
+    for item in _with_transfer_legs(session, user_id, movement, include_deleted=False):
+        item.deleted_at = deleted_at
+    _commit(session)
+
+
+def restore_movement(session: Session, user_id: uuid.UUID, movement_id: uuid.UUID) -> Movement:
+    """Undo a soft delete, including the other leg of a transfer."""
+    movement = movements_repo.get_any(session, user_id, movement_id)
+    if movement is None:
+        raise NotFoundError(f"Movement {movement_id} not found")
+    if movement.deleted_at is None:
+        raise ConflictError("Movement isn't deleted")
+
+    for item in _with_transfer_legs(session, user_id, movement, include_deleted=True):
+        item.deleted_at = None
+    _commit(session)
+    return movement
+
+
+def _with_transfer_legs(
+    session: Session, user_id: uuid.UUID, movement: Movement, include_deleted: bool
+) -> Sequence[Movement]:
+    if movement.transfer_group_id is None:
+        return [movement]
+    return movements_repo.list_transfer_legs(
+        session, user_id, movement.transfer_group_id, include_deleted=include_deleted
+    )
+
+
+def _commit(session: Session) -> None:
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise

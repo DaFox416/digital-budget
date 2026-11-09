@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from app.api.deps import CurrentUserId, SessionDep
 from app.schemas.movements import (
@@ -47,6 +47,27 @@ def update_movement(
     edited yet (409). To change the account or the type, delete and record it again.
     """
     movement = movements_service.update_movement(session, user_id, movement_id, data)
+    return MovementRead.model_validate(movement)
+
+
+@router.delete("/movements/{movement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_movement(
+    movement_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> Response:
+    """Soft delete a movement; deleting either leg of a transfer deletes both.
+
+    Undo with POST /movements/{id}/restore. Deleted movements give 404 everywhere else.
+    """
+    movements_service.delete_movement(session, user_id, movement_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/movements/{movement_id}/restore")
+def restore_movement(
+    movement_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> MovementRead:
+    """Undo a delete, including the other leg of a transfer. 409 if it isn't deleted."""
+    movement = movements_service.restore_movement(session, user_id, movement_id)
     return MovementRead.model_validate(movement)
 
 
