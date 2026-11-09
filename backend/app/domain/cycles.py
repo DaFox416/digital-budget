@@ -140,3 +140,23 @@ def next_payment_cycle(today: date, config: CreditCycleConfig) -> NextPayment:
         if previous.payment_due < today:
             return NextPayment(candidate, is_closed=True)
         candidate = previous
+
+
+def updated_cycle_config(
+    current: CreditCycleConfig,
+    cutoff_day: int | None = None,
+    payment_due_rule: PaymentDueRule | None = None,
+    payment_due_value: int | None = None,
+) -> CreditCycleConfig:
+    """Merge the edited fields into the current config and validate the result as a whole.
+
+    The payment value's valid range depends on the rule, so changing only the rule can make
+    the current value invalid (fixed day 31 -> days after cutoff 31 is fine, 75 isn't).
+    """
+    return CreditCycleConfig(
+        cutoff_day=current.cutoff_day if cutoff_day is None else cutoff_day,
+        payment_due_rule=current.payment_due_rule if payment_due_rule is None else payment_due_rule,
+        payment_due_value=(
+            current.payment_due_value if payment_due_value is None else payment_due_value
+        ),
+    )

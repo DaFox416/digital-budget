@@ -13,6 +13,7 @@ from app.domain.cycles import (
     last_closed_cycle,
     next_payment_cycle,
     payment_due_date,
+    updated_cycle_config,
 )
 from app.domain.enums import PaymentDueRule
 from app.domain.errors import InvalidCreditConfigError
@@ -215,6 +216,42 @@ class TestNextPaymentCycle:
 
         assert result.cycle.cutoff == date(2027, 1, 15)
         assert not result.is_closed
+
+
+class TestUpdatedCycleConfig:
+    CURRENT = config(15, FIXED, 5)
+
+    def test_nothing_sent_keeps_the_config(self) -> None:
+        assert updated_cycle_config(self.CURRENT) == self.CURRENT
+
+    def test_only_the_cutoff_day(self) -> None:
+        assert updated_cycle_config(self.CURRENT, cutoff_day=20) == config(20, FIXED, 5)
+
+    def test_rule_and_value_together(self) -> None:
+        result = updated_cycle_config(
+            self.CURRENT, payment_due_rule=DAYS_AFTER, payment_due_value=20
+        )
+
+        assert result == config(15, DAYS_AFTER, 20)
+
+    def test_only_the_rule_keeps_a_value_that_still_fits(self) -> None:
+        result = updated_cycle_config(self.CURRENT, payment_due_rule=DAYS_AFTER)
+
+        assert result == config(15, DAYS_AFTER, 5)
+
+    def test_rejects_a_value_that_doesnt_fit_the_current_rule(self) -> None:
+        with pytest.raises(InvalidCreditConfigError, match="Payment day"):
+            updated_cycle_config(self.CURRENT, payment_due_value=45)
+
+    def test_rejects_a_current_value_that_doesnt_fit_the_new_rule(self) -> None:
+        current = config(15, DAYS_AFTER, 45)
+
+        with pytest.raises(InvalidCreditConfigError, match="Payment day"):
+            updated_cycle_config(current, payment_due_rule=FIXED)
+
+    def test_rejects_an_invalid_cutoff_day(self) -> None:
+        with pytest.raises(InvalidCreditConfigError, match="Cutoff day"):
+            updated_cycle_config(self.CURRENT, cutoff_day=32)
 
 
 class TestConfigValidation:
