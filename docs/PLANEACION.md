@@ -37,6 +37,8 @@
 | 2026-11-09 | Las compras a MSI no se editan hasta la v1 (adelantar o liquidar): `PATCH` responde 409. Campos desconocidos en `PATCH /movements/{id}` (por ejemplo `account_id` o `type`) responden 422 en lugar de ignorarse. |
 | 2026-11-09 | Borrado lógico: `DELETE /movements/{id}` responde 204 y un movimiento borrado da 404 en el resto de la API (también un segundo `DELETE`). `POST /movements/{id}/restore` lo deshace sin límite de tiempo (el aviso de deshacer vive en el frontend) y responde 409 si el movimiento no está borrado. Las dos partes de una transferencia se borran y restauran juntas. |
 | 2026-11-09 | Borrar una compra a MSI solo marca su movimiento: el plan y sus mensualidades se conservan, y las consultas los excluyen mientras la compra esté borrada. Toda consulta nueva sobre mensualidades (por ejemplo, MSI por cargar en `/summary`) debe filtrar compras borradas. |
+| 2026-11-09 | Próximo pago de una tarjeta: el estado de cuenta cerrado más antiguo cuya fecha límite no ha pasado (el día límite cuenta). Si todos vencieron, el ciclo abierto con lo cargado hasta hoy, marcado `is_closed: false`. Con corte el 15 y pago el 5: del 16 nov al 5 dic, el corte del 15 nov; del 6 al 15 dic, el ciclo que cierra el 15 dic. Un pago vencido no se arrastra (límite de la regla 8, se revisa en la v1). |
+| 2026-11-09 | `GET /summary` v1: saldo real (débito y efectivo; las cuentas de ahorro no cuentan), deuda de tarjetas (una tarjeta con saldo a favor resta), MSI por cargar (mensualidades con fecha de cargo posterior a hoy, sin compras borradas) y próximo pago de cada tarjeta. No acepta `?on=`: los saldos no se filtran por fecha, y mezclar días daría cifras incoherentes. |
 
 ## Resumen
 
@@ -361,7 +363,8 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 > - Primera pantalla: cifras del resumen arriba, una tarjeta por cuenta (en crédito: disponible y próximo pago) y lista de movimientos. Responsiva, sin menús.
 > - Al cerrar el día: sesión de pruebas manuales con datos reales (guion en `docs/PRUEBAS-MANUALES.md`): dar de alta cuentas reales, capturar un ciclo cerrado (con MSI si hay), comparar `/cards/{id}/statement` con el estado de cuenta del banco, probar editar/borrar/deshacer y anotar diferencias. Antes, agregar a CLAUDE.md un comando de respaldo con `pg_dump`, porque `docker compose down -v` borraría esos datos.
 
-- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar desde el día 5; `PATCH /movements/{id}`, `DELETE /movements/{id}` y `POST /movements/{id}/restore` hechos el 2026-11-09; falta `/summary`, que debe excluir compras a MSI borradas)
+- [x] CRUD de movimientos + `/summary` (crear y listar desde el día 5; `PATCH`, `DELETE` y `restore` de movimientos y `GET /summary` hechos el 2026-11-09)
+- [ ] `PATCH /accounts/{id}` (editar cuenta y su configuración de crédito): está en la tabla de la API pero no entró en la propuesta del día 9; falta decidir cuándo
 - [ ] Generar cliente TypeScript desde OpenAPI
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
 - [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
