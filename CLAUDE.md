@@ -63,6 +63,8 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Pruebas: `npm test` (una vez) o `npm run test:watch`
 - Lint: `npm run lint` · Formato: `npm run format` (o `format:check`) · Tipos: `npm run typecheck`
 - Build: `npm run build`
+- Tipos de la API: `npm run api:types` (con el backend levantado; otra URL con `OPENAPI_URL`). Regenera `src/api/schema.d.ts`, que se sube al repo y no se edita a mano. Correrlo cada vez que cambie un esquema o una ruta del backend.
+- `openapi-typescript` pide TypeScript 5 como peer; un `overrides` en `package.json` le da nuestro TS 6. Quitarlo cuando publique una versión compatible.
 - TypeScript 6.0, no 7: typescript-eslint aún no soporta TS 7.
 
 **pre-commit** (desde la raíz; se instala con las dependencias de desarrollo del backend):
