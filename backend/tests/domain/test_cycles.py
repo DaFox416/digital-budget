@@ -11,6 +11,7 @@ from app.domain.cycles import (
     cycle_for,
     day_in_month,
     last_closed_cycle,
+    next_payment_cycle,
     payment_due_date,
 )
 from app.domain.enums import PaymentDueRule
@@ -170,6 +171,50 @@ class TestLastClosedCycle:
 
     def test_the_day_after_the_cutoff(self) -> None:
         assert last_closed_cycle(date(2026, 11, 16), config(15)).cutoff == date(2026, 11, 15)
+
+
+class TestNextPaymentCycle:
+    # Cutoff on the 15th, payment on the 5th
+    NOV_15 = CardCycle(date(2026, 10, 16), date(2026, 11, 15), date(2026, 12, 5))
+    DEC_15 = CardCycle(date(2026, 11, 16), date(2026, 12, 15), date(2027, 1, 5))
+
+    def test_after_the_cutoff_is_the_closed_statement(self) -> None:
+        result = next_payment_cycle(date(2026, 11, 20), config(15))
+
+        assert result.cycle == self.NOV_15
+        assert result.is_closed
+
+    def test_the_due_date_still_counts(self) -> None:
+        result = next_payment_cycle(date(2026, 12, 5), config(15))
+
+        assert result.cycle == self.NOV_15
+        assert result.is_closed
+
+    def test_after_the_due_date_is_the_open_cycle(self) -> None:
+        result = next_payment_cycle(date(2026, 12, 6), config(15))
+
+        assert result.cycle == self.DEC_15
+        assert not result.is_closed
+
+    def test_on_the_cutoff_day_the_cycle_that_closes_today(self) -> None:
+        result = next_payment_cycle(date(2026, 12, 15), config(15))
+
+        assert result.cycle == self.DEC_15
+        assert result.is_closed
+
+    def test_with_long_days_after_cutoff_the_older_statement_comes_first(self) -> None:
+        # 45 days after the cutoff: the Nov 15 statement is due Dec 30, after the Dec 15 cutoff
+        result = next_payment_cycle(date(2026, 12, 20), config(15, DAYS_AFTER, 45))
+
+        assert result.cycle.cutoff == date(2026, 11, 15)
+        assert result.cycle.payment_due == date(2026, 12, 30)
+        assert result.is_closed
+
+    def test_change_of_year(self) -> None:
+        result = next_payment_cycle(date(2027, 1, 6), config(15))
+
+        assert result.cycle.cutoff == date(2027, 1, 15)
+        assert not result.is_closed
 
 
 class TestConfigValidation:

@@ -112,3 +112,31 @@ def last_closed_cycle(today: date, config: CreditCycleConfig) -> CardCycle:
     if today == current.cutoff:
         return current
     return cycle_for(current.start - timedelta(days=1), config)
+
+
+@dataclass(frozen=True)
+class NextPayment:
+    cycle: CardCycle
+    # False when the last statement's due date already passed and the open cycle is shown:
+    # its amount is what was charged so far, not a final statement
+    is_closed: bool
+
+
+def next_payment_cycle(today: date, config: CreditCycleConfig) -> NextPayment:
+    """The statement to pay next.
+
+    The earliest closed cycle whose due date hasn't passed (the due date itself still counts).
+    If every closed cycle is past due, the open cycle: with cutoff on the 15th and payment
+    on the 5th, from Dec 6 to Dec 15 that's the cycle that closes on Dec 15.
+    An unpaid past-due statement isn't carried over (known limit of rule 8, reviewed in v1).
+    """
+    candidate = last_closed_cycle(today, config)
+    if candidate.payment_due < today:
+        return NextPayment(cycle_for(today, config), is_closed=False)
+
+    # With a long "days after cutoff" rule an older statement may still be due before this one
+    while True:
+        previous = cycle_for(candidate.start - timedelta(days=1), config)
+        if previous.payment_due < today:
+            return NextPayment(candidate, is_closed=True)
+        candidate = previous
