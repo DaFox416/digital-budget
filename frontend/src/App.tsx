@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useHealth } from './api/queries'
 
 type ApiStatus = 'checking' | 'ok' | 'down'
 
@@ -15,24 +15,8 @@ const statusColor: Record<ApiStatus, string> = {
 }
 
 function App() {
-  const [status, setStatus] = useState<ApiStatus>('checking')
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    fetch('/api/v1/health', { signal: controller.signal })
-      .then((response) => {
-        setStatus(response.ok ? 'ok' : 'down')
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        setStatus('down')
-      })
-
-    return () => {
-      controller.abort()
-    }
-  }, [])
+  const health = useHealth()
+  const status: ApiStatus = health.isPending ? 'checking' : health.isError ? 'down' : 'ok'
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
