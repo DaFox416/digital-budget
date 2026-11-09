@@ -45,6 +45,9 @@
 | 2026-11-09 | Tipos del frontend generados con `openapi-typescript` (`npm run api:types`, con el backend levantado). `src/api/schema.d.ts` se sube al repo para compilar sin backend y ver en el diff cómo cambia el contrato. `openapi-typescript` 7 pide TS 5 como peer: un `overrides` acotado a ese paquete le da nuestro TS 6 (mejor que `--legacy-peer-deps`, que relaja todos los peers). Un chequeo en CI de que los tipos estén al día se evalúa con GitHub Actions en la v1. |
 | 2026-11-09 | Llamadas con `openapi-fetch` y TanStack Query. `unwrap()` convierte las respuestas con error en `ApiError` (`status`, `detail` de FastAPI como mensaje; los 422 juntan sus `msg`). Claves de caché centralizadas en `queryKeys` para que las mutaciones del día 11 invaliden lo necesario. Por defecto: `staleTime` 30 s y un reintento. Sin MSW por ahora: las pruebas simulan `fetch`. |
 | 2026-11-09 | `formatMoney` formatea el string de la API con `Intl.NumberFormat('es-MX', MXN)`, que trata los strings como decimales exactos (ES2023), sin pasar por `float`. Rechaza lo que no tenga forma de monto en lugar de mostrar `NaN` y muestra el cero negativo sin signo. |
+| 2026-11-09 | Primera pantalla: resumen (saldo real, deuda de tarjetas, MSI por cargar; disponible se agrega el día 10, sin hueco vacío mientras tanto), una tarjeta por cuenta y los últimos 50 movimientos por día. Una columna en móvil y dos desde `lg`. Solo lectura: crear, editar y borrar llegan con la captura del día 11. |
+| 2026-11-09 | En la pantalla, cada sección maneja su propio estado de carga, error (con "Reintentar") y vacío, para que una llamada que falla no deje la página en blanco. El frontend no hace cuentas con dinero: la deuda y el próximo pago de cada tarjeta vienen de `/summary`. Una transferencia o pago de tarjeta se muestra como una sola fila. |
+| 2026-11-09 | Las fechas de la API (`AAAA-MM-DD`) nunca pasan por `new Date(iso)`, que las lee como medianoche UTC y en México las muestra un día antes. `lib/dates.ts` las separa y formatea en UTC con `Intl` (es-MX: "vie 20 de nov", "5 dic"). |
 
 ## Resumen
 
@@ -372,7 +375,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] CRUD de movimientos + `/summary` (crear y listar desde el día 5; `PATCH`, `DELETE` y `restore` de movimientos y `GET /summary` hechos el 2026-11-09)
 - [x] `PATCH /accounts/{id}` (editar cuenta y su configuración de crédito), agregado el 2026-11-09 para poder corregir errores antes de las pruebas manuales con datos reales
 - [x] Generar cliente TypeScript desde OpenAPI (con TanStack Query y `formatMoney`, 2026-11-09)
-- [ ] Layout con lista de movimientos y tarjetas de cuenta
+- [x] Layout con lista de movimientos y tarjetas de cuenta (2026-11-09, revisado por el usuario en el navegador)
 - [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
 
 **Mar 10 · Modo ahorro en el dominio**
