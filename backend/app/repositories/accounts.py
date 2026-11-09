@@ -47,3 +47,13 @@ def list_with_movement_totals(
         total: Decimal = row[1]
         result.append((account, total))
     return result
+
+
+def movements_total(session: Session, user_id: uuid.UUID, account_id: uuid.UUID) -> Decimal:
+    """Sum of real amounts of the account's non-deleted movements."""
+    statement = select(func.coalesce(func.sum(Movement.real_amount), 0)).where(
+        Movement.user_id == user_id,
+        Movement.account_id == account_id,
+        Movement.deleted_at.is_(None),
+    )
+    return Decimal(session.scalar(statement) or 0)

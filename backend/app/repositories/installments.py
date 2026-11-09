@@ -1,6 +1,7 @@
 """Queries for MSI installments. All of them filter by user_id."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import date
 
 from sqlalchemy import select
@@ -33,3 +34,16 @@ def list_pending(
         installment: Installment = row[1]
         result.append((account_id, installment))
     return result
+
+
+def list_plans_for_account(
+    session: Session, user_id: uuid.UUID, account_id: uuid.UUID
+) -> Sequence[InstallmentPlan]:
+    """Every plan of a card, including those whose purchase was deleted (so restoring works).
+
+    Installments load with each plan (selectin).
+    """
+    statement = select(InstallmentPlan).where(
+        InstallmentPlan.user_id == user_id, InstallmentPlan.account_id == account_id
+    )
+    return session.scalars(statement).all()

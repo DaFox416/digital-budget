@@ -1,8 +1,16 @@
+import uuid
+
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUserId, SessionDep
 from app.domain.cycles import CardCycle
-from app.schemas.accounts import AccountCreate, AccountRead, CardCycleRead, CreditRead
+from app.schemas.accounts import (
+    AccountCreate,
+    AccountRead,
+    AccountUpdate,
+    CardCycleRead,
+    CreditRead,
+)
 from app.services import accounts as accounts_service
 from app.services.accounts import AccountWithBalance, CreditSummary
 
@@ -51,3 +59,15 @@ def list_accounts(session: SessionDep, user_id: CurrentUserId) -> list[AccountRe
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_account(data: AccountCreate, session: SessionDep, user_id: CurrentUserId) -> AccountRead:
     return _to_read(accounts_service.create_account(session, user_id, data))
+
+
+@router.patch("/{account_id}")
+def update_account(
+    account_id: uuid.UUID, data: AccountUpdate, session: SessionDep, user_id: CurrentUserId
+) -> AccountRead:
+    """Edit name, color, initial balance and, on credit cards, the credit config.
+
+    Fields left out don't change. Changing the cutoff day recalculates the dates of the
+    card's MSI installments. The type can't change (422).
+    """
+    return _to_read(accounts_service.update_account(session, user_id, account_id, data))

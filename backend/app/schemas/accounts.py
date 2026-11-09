@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.domain.enums import AccountType, PaymentDueRule
 from app.schemas.common import Money, PositiveMoney
@@ -37,6 +37,54 @@ class AccountCreate(BaseModel):
             raise ValueError("A credit account needs its credit config")
         if self.type is not AccountType.CREDIT and self.credit is not None:
             raise ValueError(f"A {self.type} account can't have a credit config")
+        return self
+
+
+def _reject_explicit_nulls(model: BaseModel, fields: tuple[str, ...]) -> None:
+    """Leaving a field out keeps it; sending null for one that can't be empty is an error."""
+    for field in fields:
+        if field in model.model_fields_set and getattr(model, field) is None:
+            raise ValueError(f"{field} can't be null")
+
+
+class CreditConfigUpdate(BaseModel):
+    """Fields left out keep their value. The merged config is validated as a whole."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    credit_limit: PositiveMoney | None = None
+    cutoff_day: int | None = Field(default=None, ge=1, le=31)
+    payment_due_rule: PaymentDueRule | None = None
+    payment_due_value: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def no_explicit_nulls(self) -> Self:
+        _reject_explicit_nulls(
+            self, ("credit_limit", "cutoff_day", "payment_due_rule", "payment_due_value")
+        )
+        return self
+
+
+class AccountUpdate(BaseModel):
+    """Partial edit of an account. Fields left out don't change.
+
+    The type can't change. `credit` only applies to credit accounts; changing the cutoff day
+    recalculates the dates of the card's MSI installments.
+    """
+
+    # Unknown fields (type, position...) get a 422 instead of being silently ignored
+    model_config = ConfigDict(extra="forbid")
+
+    name: AccountName | None = None
+    # Fixes a typo: every balance is recalculated from it
+    initial_balance: Money | None = None
+    # null removes the color
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    credit: CreditConfigUpdate | None = None
+
+    @model_validator(mode="after")
+    def no_explicit_nulls(self) -> Self:
+        _reject_explicit_nulls(self, ("name", "initial_balance", "credit"))
         return self
 
 
