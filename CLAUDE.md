@@ -42,6 +42,20 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Comandos dentro de un contenedor: `docker compose exec backend pytest`, `docker compose exec db psql -U budget`
 - La recarga automática usa polling (Windows no propaga eventos de archivos a los contenedores).
 
+**Respaldo de la BD** (antes de cualquier `docker compose down -v`; los archivos van a `backups/`, que está en `.gitignore` porque tienen datos reales):
+
+- Respaldar:
+  `docker compose exec db pg_dump -U budget -d budget --format=custom -f /tmp/budget.dump`
+  `docker compose cp db:/tmp/budget.dump backups/budget-AAAA-MM-DD.dump`
+- Restaurar (reemplaza los datos actuales):
+  `docker compose stop backend`
+  `docker compose cp backups/budget-AAAA-MM-DD.dump db:/tmp/budget.dump`
+  `docker compose exec db pg_restore -U budget -d budget --clean --if-exists /tmp/budget.dump`
+  `docker compose start backend` (aplica las migraciones que falten si el respaldo es viejo)
+- El archivo se genera dentro del contenedor y se copia con `docker compose cp`: el formato `custom` es binario y la redirección `>` de PowerShell lo puede corromper.
+- En Git Bash, anteponer `MSYS_NO_PATHCONV=1` (o `export` una vez): MSYS convierte `/tmp/...` en una ruta de Windows. En PowerShell no hace falta.
+- Solo se respalda `budget`; `budget_test` se recrea sola.
+
 **Backend** (desde `backend/`, con el venv `.venv` de Python 3.12):
 
 - Instalar: `py -3.12 -m venv .venv` y `.venv\Scripts\python -m pip install -e ".[dev]"`

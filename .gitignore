@@ -22,6 +22,10 @@ test-results/
 .env.*
 !.env.example
 
+# Datos reales: respaldos de la BD y notas de pruebas manuales. Nunca al repo.
+backups/
+*.local.md
+
 # Editores y sistema
 .vscode/
 .idea/
