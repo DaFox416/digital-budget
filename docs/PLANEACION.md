@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-09
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -32,6 +32,9 @@
 | 2026-11-06 | Cifras principales en pantalla: saldo real, disponible, deuda de tarjetas y MSI por cargar. Apartado, ahorros con meta y sobrante se muestran como detalle secundario. |
 | 2026-11-06 | La primera mensualidad MSI cae en el ciclo de la compra y se carga al disponible ese mismo día; las demás, el día siguiente al corte anterior. Sin procesos programados: cada mensualidad guarda su fecha de cargo. |
 | 2026-11-06 | Plazos MSI de 3 a 48 meses. En el frontend se muestran primero 3, 6, 9 y 12. |
+| 2026-11-09 | Se aprueba la propuesta del día 9. Al editar un movimiento no se cambian la cuenta ni el tipo (se borra y se captura de nuevo); en transferencias y pagos de tarjeta se editan las dos partes juntas (monto, fecha, descripción). |
+| 2026-11-09 | Si al editar un gasto o ingreso solo se manda el monto, el contable vuelve a ser igual al real (como al crear); si solo se manda el contable, se conserva el real. Conservar el contable anterior podría dejarlo por debajo del real en un gasto. |
+| 2026-11-09 | Las compras a MSI no se editan hasta la v1 (adelantar o liquidar): `PATCH` responde 409. Campos desconocidos en `PATCH /movements/{id}` (por ejemplo `account_id` o `type`) responden 422 en lugar de ignorarse. |
 
 ## Resumen
 
@@ -347,7 +350,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Lun 9 · API completa y primera pantalla**
 
-> **Propuesta detallada (2026-11-06), pendiente de aprobar al empezar el día:**
+> **Propuesta detallada (2026-11-06), aprobada el 2026-11-09:**
 >
 > - `PATCH /movements/{id}`: en gastos e ingresos se editan monto, contable, fecha, descripción y categoría (cambiar cuenta o tipo = borrar y capturar de nuevo). En transferencias y pagos de tarjeta se editan las dos partes juntas (monto, fecha, descripción). Las compras a MSI no se editan por ahora (adelantar o liquidar es de la v1).
 > - `DELETE /movements/{id}` (borrado lógico) y `POST /movements/{id}/restore` (deshacer). Borrar una transferencia borra sus dos partes; borrar una compra a MSI saca sus mensualidades del estado de cuenta.
@@ -356,7 +359,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 > - Primera pantalla: cifras del resumen arriba, una tarjeta por cuenta (en crédito: disponible y próximo pago) y lista de movimientos. Responsiva, sin menús.
 > - Al cerrar el día: sesión de pruebas manuales con datos reales (guion en `docs/PRUEBAS-MANUALES.md`): dar de alta cuentas reales, capturar un ciclo cerrado (con MSI si hay), comparar `/cards/{id}/statement` con el estado de cuenta del banco, probar editar/borrar/deshacer y anotar diferencias. Antes, agregar a CLAUDE.md un comando de respaldo con `pg_dump`, porque `docker compose down -v` borraría esos datos.
 
-- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar ya existen desde el día 5; faltan editar, borrado lógico y `/summary`)
+- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar desde el día 5; `PATCH /movements/{id}` hecho el 2026-11-09; faltan borrado lógico con deshacer y `/summary`)
 - [ ] Generar cliente TypeScript desde OpenAPI
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
 - [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
