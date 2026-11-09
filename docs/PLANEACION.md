@@ -35,6 +35,8 @@
 | 2026-11-09 | Se aprueba la propuesta del día 9. Al editar un movimiento no se cambian la cuenta ni el tipo (se borra y se captura de nuevo); en transferencias y pagos de tarjeta se editan las dos partes juntas (monto, fecha, descripción). |
 | 2026-11-09 | Si al editar un gasto o ingreso solo se manda el monto, el contable vuelve a ser igual al real (como al crear); si solo se manda el contable, se conserva el real. Conservar el contable anterior podría dejarlo por debajo del real en un gasto. |
 | 2026-11-09 | Las compras a MSI no se editan hasta la v1 (adelantar o liquidar): `PATCH` responde 409. Campos desconocidos en `PATCH /movements/{id}` (por ejemplo `account_id` o `type`) responden 422 en lugar de ignorarse. |
+| 2026-11-09 | Borrado lógico: `DELETE /movements/{id}` responde 204 y un movimiento borrado da 404 en el resto de la API (también un segundo `DELETE`). `POST /movements/{id}/restore` lo deshace sin límite de tiempo (el aviso de deshacer vive en el frontend) y responde 409 si el movimiento no está borrado. Las dos partes de una transferencia se borran y restauran juntas. |
+| 2026-11-09 | Borrar una compra a MSI solo marca su movimiento: el plan y sus mensualidades se conservan, y las consultas los excluyen mientras la compra esté borrada. Toda consulta nueva sobre mensualidades (por ejemplo, MSI por cargar en `/summary`) debe filtrar compras borradas. |
 
 ## Resumen
 
@@ -359,7 +361,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 > - Primera pantalla: cifras del resumen arriba, una tarjeta por cuenta (en crédito: disponible y próximo pago) y lista de movimientos. Responsiva, sin menús.
 > - Al cerrar el día: sesión de pruebas manuales con datos reales (guion en `docs/PRUEBAS-MANUALES.md`): dar de alta cuentas reales, capturar un ciclo cerrado (con MSI si hay), comparar `/cards/{id}/statement` con el estado de cuenta del banco, probar editar/borrar/deshacer y anotar diferencias. Antes, agregar a CLAUDE.md un comando de respaldo con `pg_dump`, porque `docker compose down -v` borraría esos datos.
 
-- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar desde el día 5; `PATCH /movements/{id}` hecho el 2026-11-09; faltan borrado lógico con deshacer y `/summary`)
+- [ ] CRUD de cuentas y movimientos + `/summary` (crear y listar desde el día 5; `PATCH /movements/{id}`, `DELETE /movements/{id}` y `POST /movements/{id}/restore` hechos el 2026-11-09; falta `/summary`, que debe excluir compras a MSI borradas)
 - [ ] Generar cliente TypeScript desde OpenAPI
 - [ ] Layout con lista de movimientos y tarjetas de cuenta
 - [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
