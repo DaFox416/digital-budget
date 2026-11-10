@@ -269,7 +269,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Commitment
+         * @description Soft delete a pending commitment; undo with POST /commitments/{id}/restore. A paid one
+         *     answers 409 (delete its payment first). Deleted ones give 404 everywhere else.
+         */
+        delete: operations["delete_commitment_api_v1_commitments__commitment_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -277,6 +282,26 @@ export interface paths {
          * @description Edit a pending commitment. A paid one answers 409.
          */
         patch: operations["update_commitment_api_v1_commitments__commitment_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/commitments/{commitment_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Commitment
+         * @description Undo a delete. 409 if it isn't deleted.
+         */
+        post: operations["restore_commitment_api_v1_commitments__commitment_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/preferences": {
@@ -316,6 +341,26 @@ export interface paths {
          */
         post: operations["release_leftover_api_v1_leftover_releases_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leftover-releases/{release_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Undo Leftover Release
+         * @description Undo a release: the amount goes back from "available" to the leftover.
+         */
+        delete: operations["undo_leftover_release_api_v1_leftover_releases__release_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -709,6 +754,8 @@ export interface components {
             description?: string | null;
             /** Category Id */
             category_id?: string | null;
+            /** Commitment Id */
+            commitment_id?: string | null;
         };
         /** NextPaymentRead */
         NextPaymentRead: {
@@ -1353,6 +1400,35 @@ export interface operations {
             };
         };
     };
+    delete_commitment_api_v1_commitments__commitment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commitment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_commitment_api_v1_commitments__commitment_id__patch: {
         parameters: {
             query?: never;
@@ -1367,6 +1443,37 @@ export interface operations {
                 "application/json": components["schemas"]["CommitmentUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_commitment_api_v1_commitments__commitment_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commitment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1462,6 +1569,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LeftoverReleaseRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_leftover_release_api_v1_leftover_releases__release_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                release_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
