@@ -51,8 +51,14 @@ export const tdcOroSummary: CardSummary = {
 
 export const summary: Summary = {
   on: '2026-11-20',
+  // Adds up: 12,000 + 0 + 12,634 + 0 + 143.11 - 10,000 = 14,777.11
   real_balance: '14777.11',
+  available: '12000.00',
+  set_aside: '0.00',
   card_debt: '12634.00',
+  savings_goals: '0.00',
+  leftover: '143.11',
+  leftover_releasable: '140.00',
   installments_pending: '10000.00',
   cards: [tdcOroSummary],
 }
@@ -67,6 +73,7 @@ function movement(fields: Partial<Movement> & Pick<Movement, 'id'>): Movement {
     description: '',
     category_id: null,
     transfer_group_id: null,
+    commitment_id: null,
     created_at: '2026-11-20T12:00:00Z',
     ...fields,
   }

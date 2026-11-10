@@ -17,6 +17,7 @@ function movement(fields: Partial<Movement>): Movement {
     description: '',
     category_id: null,
     transfer_group_id: null,
+    commitment_id: null,
     created_at: '2026-11-20T12:00:00Z',
     ...fields,
   }

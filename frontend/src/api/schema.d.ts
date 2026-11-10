@@ -227,11 +227,94 @@ export interface paths {
         };
         /**
          * Get Summary
-         * @description Real balance, card debt, MSI pending to charge and the next payment of each card.
+         * @description The seven savings mode figures and the next payment of each card.
          */
         get: operations["get_summary_api_v1_summary_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Commitments
+         * @description Commitments ("apartados"), pending ones first by expected date.
+         */
+        get: operations["list_commitments_api_v1_commitments_get"];
+        put?: never;
+        /** Create Commitment */
+        post: operations["create_commitment_api_v1_commitments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/commitments/{commitment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Commitment
+         * @description Edit a pending commitment. A paid one answers 409.
+         */
+        patch: operations["update_commitment_api_v1_commitments__commitment_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preferences */
+        get: operations["get_preferences_api_v1_preferences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Preferences
+         * @description Savings mode on or off and the rounding multiple. The mode only changes what the app
+         *     shows: both amounts are always stored.
+         */
+        patch: operations["update_preferences_api_v1_preferences_patch"];
+        trace?: never;
+    };
+    "/api/v1/leftover-releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Leftover
+         * @description Move leftover ("sobrante") back to "available", in multiples of the rounding.
+         */
+        post: operations["release_leftover_api_v1_leftover_releases_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -345,6 +428,47 @@ export interface components {
             name: string;
             /** Icon */
             icon: string;
+        };
+        /**
+         * CommitmentCreate
+         * @description A planned expense ("apartado"), like the electricity bill. It lowers "available" until
+         *     an expense pays it (send its id as `commitment_id` when recording the expense).
+         */
+        CommitmentCreate: {
+            /** Name */
+            name: string;
+            /** Amount */
+            amount: number | string;
+            /** Expected On */
+            expected_on?: string | null;
+        };
+        /** CommitmentRead */
+        CommitmentRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Amount */
+            amount: string;
+            /** Expected On */
+            expected_on: string | null;
+            /** Paid By Movement Id */
+            paid_by_movement_id: string | null;
+        };
+        /**
+         * CommitmentUpdate
+         * @description Partial edit; fields left out don't change. A paid commitment can't be edited.
+         */
+        CommitmentUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Amount */
+            amount?: number | string | null;
+            /** Expected On */
+            expected_on?: string | null;
         };
         /** CreditConfigCreate */
         CreditConfigCreate: {
@@ -471,6 +595,30 @@ export interface components {
             charged_on: string;
         };
         /**
+         * LeftoverReleaseCreate
+         * @description Move leftover ("sobrante") back to "available". It must be a multiple of the rounding
+         *     and no more than the leftover; `GET /summary` says how much can be released.
+         */
+        LeftoverReleaseCreate: {
+            /** Amount */
+            amount: number | string;
+        };
+        /** LeftoverReleaseRead */
+        LeftoverReleaseRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Released On
+             * Format: date
+             */
+            released_on: string;
+        };
+        /**
          * MovementCreate
          * @description An expense or an income. Amounts are positive; the type decides the sign.
          */
@@ -498,6 +646,8 @@ export interface components {
             description: string;
             /** Category Id */
             category_id?: string | null;
+            /** Commitment Id */
+            commitment_id?: string | null;
         };
         /** MovementRead */
         MovementRead: {
@@ -527,6 +677,8 @@ export interface components {
             category_id: string | null;
             /** Transfer Group Id */
             transfer_group_id: string | null;
+            /** Commitment Id */
+            commitment_id: string | null;
             /**
              * Created At
              * Format: date-time
@@ -581,6 +733,24 @@ export interface components {
          * @enum {string}
          */
         PaymentDueRule: "fixed_day" | "days_after_cutoff";
+        /** PreferencesRead */
+        PreferencesRead: {
+            mode: components["schemas"]["SavingsMode"];
+            /** Rounding Multiple */
+            rounding_multiple: number;
+        };
+        /** PreferencesUpdate */
+        PreferencesUpdate: {
+            mode?: components["schemas"]["SavingsMode"] | null;
+            /** Rounding Multiple */
+            rounding_multiple?: number | null;
+        };
+        /**
+         * SavingsMode
+         * @description Simple: accounting always equals real. Savings: they can differ (see docs/PLANEACION.md).
+         * @enum {string}
+         */
+        SavingsMode: "simple" | "savings";
         /** StatementInstallmentRead */
         StatementInstallmentRead: {
             /**
@@ -635,8 +805,10 @@ export interface components {
         };
         /**
          * SummaryRead
-         * @description Home screen figures. Savings mode figures (available, set aside, savings, leftover)
-         *     arrive on day 10.
+         * @description The seven savings mode figures (always sent; simple mode just shows fewer).
+         *
+         *     real_balance = available + set_aside + card_debt + savings_goals + leftover
+         *                    - installments_pending
          */
         SummaryRead: {
             /**
@@ -646,8 +818,18 @@ export interface components {
             on: string;
             /** Real Balance */
             real_balance: string;
+            /** Available */
+            available: string;
+            /** Set Aside */
+            set_aside: string;
             /** Card Debt */
             card_debt: string;
+            /** Savings Goals */
+            savings_goals: string;
+            /** Leftover */
+            leftover: string;
+            /** Leftover Releasable */
+            leftover_releasable: string;
             /** Installments Pending */
             installments_pending: string;
             /** Cards */
@@ -1114,6 +1296,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryRead"];
+                };
+            };
+        };
+    };
+    list_commitments_api_v1_commitments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentRead"][];
+                };
+            };
+        };
+    };
+    create_commitment_api_v1_commitments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_commitment_api_v1_commitments__commitment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commitment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommitmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preferences_api_v1_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesRead"];
+                };
+            };
+        };
+    };
+    update_preferences_api_v1_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_leftover_api_v1_leftover_releases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeftoverReleaseCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeftoverReleaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

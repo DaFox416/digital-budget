@@ -332,6 +332,7 @@ digital-budget/
 | `GET /summary` | Las siete cifras del modo ahorro y próximos pagos |
 | `POST /savings-goals`, `/{id}/deposit`, `/{id}/withdraw` | Crear metas de ahorro, depositar y retirar al completarlas |
 | `GET/PATCH /preferences` | Modo simple o ahorro y múltiplo de redondeo |
+| `POST /leftover-releases` | Liberar sobrante al disponible en múltiplos del redondeo |
 | `POST /auth/register`, `/auth/login` | Usuarios (v1, semana 1) |
 
 **Listo para deploy sin costo hoy:** configuración por variables de entorno, contenedores con imágenes de producción, migraciones automáticas al arrancar, CORS configurable y `user_id` en todas las tablas desde el día 1, aunque el demo tenga un solo usuario.
@@ -388,10 +389,10 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Mar 10 · Modo ahorro en el dominio**
 
-- [ ] Apartados, deuda de tarjetas y cuenta Sobrante en `domain/` con pruebas del invariante
-- [ ] Regla de advertencias de nivel 1 y 2 con pruebas
+- [x] Apartados, deuda de tarjetas y cuenta Sobrante en `domain/` con pruebas del invariante (2026-11-10; la fila de Sobrante en `/accounts` pasa a la v1)
+- [x] Regla de advertencias de nivel 1 y 2 con pruebas (2026-11-10; el endpoint llega el día 11)
 - [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz
-- [ ] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras
+- [x] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras, más `POST /leftover-releases` para liberar sobrante (2026-11-10)
 
 **Mié 11 · Captura convencional**
 
