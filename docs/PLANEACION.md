@@ -50,6 +50,12 @@
 | 2026-11-09 | Las fechas de la API (`AAAA-MM-DD`) nunca pasan por `new Date(iso)`, que las lee como medianoche UTC y en México las muestra un día antes. `lib/dates.ts` las separa y formatea en UTC con `Intl` (es-MX: "vie 20 de nov", "5 dic"). |
 | 2026-11-10 | Menos pruebas: un caso por regla (sin variantes parametrizadas del mismo caso), solo los bordes que están en este registro, y las validaciones se prueban en el dominio, no otra vez en la API. En la API, el camino feliz de cada endpoint y solo los errores con decisión propia (404, 409, edición rechazada sin cambios). Meta: de 265 a unas 115 pruebas en el backend. El invariante del modo ahorro se cubre con pruebas de escenario que lo revisan después de cada paso. |
 | 2026-11-10 | Advertencias en compras a MSI: nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real. Si se cumplen ambas, solo el nivel 2. |
+| 2026-11-10 | Las siete cifras se calculan al pedirlas, no se guardan: así editar, borrar o restaurar un movimiento no desincroniza nada. Disponible = saldos iniciales + contables de débito, efectivo y crédito − contable de las mensualidades MSI ya cargadas − apartado pendiente − ahorros con meta + sobrante liberado. Sobrante = Σ(real − contable) de esas cuentas + contable de mensualidades cargadas + MSI por cargar − sobrante liberado. Ahorros con meta valen 0 hasta la v1. |
+| 2026-11-10 | La cuenta Sobrante como fila en `/accounts` se pospone a la v1 (con su historial): su saldo no sale de movimientos propios. Mientras tanto la cifra vive en `/summary`. |
+| 2026-11-10 | Liberar sobrante: pasa una cantidad del sobrante al disponible. Debe ser mayor a 0, no mayor al sobrante y múltiplo del redondeo (con $196.11 y múltiplo 10, máximo $190). `/summary` devuelve cuánto se puede liberar. |
+| 2026-11-10 | Apartados (`commitments`): nombre, monto y fecha esperada opcional; la recurrencia queda para la v1. Se paga con un gasto que lleva `commitment_id`; el apartado está pagado mientras ese gasto no esté borrado (sin campo de estado). Sin contable explícito, el contable del pago es el mayor entre el real y el monto del apartado (luz de $487 con $500 apartados: $13 al sobrante). Un apartado pagado no se edita (409). |
+| 2026-11-10 | Preferencias: modo (simple o ahorro) y múltiplo de redondeo (entero de 1 a 1000, 10 por defecto). Sin fila guardada se responden los valores por defecto. El modo solo cambia lo que muestra el frontend: el backend guarda siempre ambos montos y `/summary` siempre da las siete cifras. |
+| 2026-11-10 | Las advertencias de nivel 1 y 2 son una regla del dominio desde el día 10; el endpoint que las expone llega el día 11 con el formulario de captura. |
 
 ## Resumen
 
@@ -189,7 +195,7 @@ Cada movimiento guarda dos montos: el real, que es lo que se movió en el banco 
 4. Una compra con tarjeta de crédito funciona igual que con débito para el disponible: baja por el monto contable. El monto real baja el crédito disponible de la tarjeta y sube su deuda; las cuentas de débito no cambian hasta que pagas.
 5. Las compras a MSI no bajan el disponible por el total: cada mensualidad lo baja por su monto contable al inicio de su ciclo (la primera, el día de la compra) y la diferencia del redondeo va al sobrante. El total sí sube la deuda y baja el crédito disponible de la tarjeta desde el día de la compra. Mientras tanto, lo pendiente se ve en "MSI por cargar".
 6. Pagar la tarjeta es una transferencia de débito a crédito: bajan el saldo real y la deuda por igual; el disponible y el sobrante no cambian.
-7. La cuenta de ahorro "Sobrante" se crea de forma predeterminada y no se puede borrar. Ahí se acumula la diferencia entre montos reales y contables, y no cuenta en el disponible.
+7. La cuenta de ahorro "Sobrante" se crea de forma predeterminada y no se puede borrar. Ahí se acumula la diferencia entre montos reales y contables, y no cuenta en el disponible. (2026-11-10: en el demo es una cifra de `/summary`; la cuenta como fila llega en la v1. Se puede liberar al disponible en múltiplos del redondeo.)
 8. El modo se activa por usuario. Los datos guardan ambos montos desde el día 1, así que cambiar de modo no pierde información.
 
 **Advertencias en compras con tarjeta de crédito**
