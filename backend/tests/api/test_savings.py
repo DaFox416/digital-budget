@@ -165,6 +165,83 @@ class TestCommitments:
             "0.00",
         )
 
+    def test_delete_and_restore_a_pending_one(self, client: TestClient) -> None:
+        bbva = create_account(client, "BBVA", initial_balance="5000")
+        luz = post(client, "commitments", name="Luz", amount="500")
+        payment = post(
+            client,
+            "movements",
+            account_id=bbva["id"],
+            type="expense",
+            amount="487",
+            commitment_id=luz["id"],
+        )
+        # Paid: delete the payment first
+        assert client.delete(f"/api/v1/commitments/{luz['id']}").status_code == 409
+        client.delete(f"/api/v1/movements/{payment['id']}")
+
+        assert client.delete(f"/api/v1/commitments/{luz['id']}").status_code == 204
+
+        assert client.get("/api/v1/commitments").json() == []
+        assert figures(client)["available"] == "5000.00"
+        # Its payment can't come back while it's deleted
+        assert client.post(f"/api/v1/movements/{payment['id']}/restore").status_code == 409
+
+        assert client.post(f"/api/v1/commitments/{luz['id']}/restore").status_code == 200
+        assert figures(client)["set_aside"] == "500.00"
+
+    def test_moving_a_payment_to_another_commitment_and_unlinking_it(
+        self, client: TestClient
+    ) -> None:
+        bbva = create_account(client, "BBVA", initial_balance="5000")
+        luz = post(client, "commitments", name="Luz", amount="500")
+        agua = post(client, "commitments", name="Agua", amount="300")
+        payment = post(
+            client,
+            "movements",
+            account_id=bbva["id"],
+            type="expense",
+            amount="487",
+            commitment_id=agua["id"],
+        )
+
+        def relink(commitment_id: str | None) -> dict[str, Any]:
+            response = client.patch(
+                f"/api/v1/movements/{payment['id']}", json={"commitment_id": commitment_id}
+            )
+            assert response.status_code == 200, response.text
+            body: dict[str, Any] = response.json()
+            return body
+
+        # It was really the electricity: max(487, 500)
+        assert relink(luz["id"])["accounting_amount"] == "-500.00"
+        result = figures(client)
+        assert (result["set_aside"], result["leftover"]) == ("300.00", "13.00")
+
+        # Not a commitment payment after all: accounting equals real again
+        assert relink(None)["accounting_amount"] == "-487.00"
+        result = figures(client)
+        assert (result["set_aside"], result["leftover"]) == ("800.00", "0.00")
+
+
+def test_undoing_a_leftover_release(client: TestClient) -> None:
+    bbva = create_account(client, "BBVA", initial_balance="5000")
+    post(
+        client,
+        "movements",
+        account_id=bbva["id"],
+        type="expense",
+        amount="387.56",
+        accounting_amount="400",
+    )
+    release = post(client, "leftover-releases", amount="10")
+
+    assert client.delete(f"/api/v1/leftover-releases/{release['id']}").status_code == 204
+
+    result = figures(client)
+    assert (result["available"], result["leftover"]) == ("4600.00", "12.44")
+    assert client.delete(f"/api/v1/leftover-releases/{release['id']}").status_code == 404
+
 
 def test_preferences_default_and_update(client: TestClient) -> None:
     assert client.get("/api/v1/preferences").json() == {"mode": "simple", "rounding_multiple": 10}

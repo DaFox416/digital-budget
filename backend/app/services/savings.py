@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -125,6 +125,16 @@ def release_leftover(
     return release
 
 
+def undo_leftover_release(session: Session, user_id: uuid.UUID, release_id: uuid.UUID) -> None:
+    """Soft delete a release: its amount goes back from "available" to the leftover. Always
+    allowed, since it only makes the leftover grow."""
+    release = savings_repo.get_leftover_release(session, user_id, release_id)
+    if release is None:
+        raise NotFoundError(f"Leftover release {release_id} not found")
+    release.deleted_at = datetime.now(UTC)
+    session.commit()
+
+
 # --- Commitments ---
 
 
@@ -171,4 +181,28 @@ def update_commitment(
     if "expected_on" in sent:
         commitment.expected_on = data.expected_on
     session.commit()
+    return CommitmentWithPayment(commitment, None)
+
+
+def delete_commitment(session: Session, user_id: uuid.UUID, commitment_id: uuid.UUID) -> None:
+    """Soft delete a pending commitment. A paid one answers 409: delete its payment first, so
+    no expense points to a deleted commitment."""
+    commitment = get_commitment(session, user_id, commitment_id)
+    if savings_repo.payment_id(session, user_id, commitment.id) is not None:
+        raise ConflictError("A paid commitment can't be deleted; delete its payment first")
+    commitment.deleted_at = datetime.now(UTC)
+    session.commit()
+
+
+def restore_commitment(
+    session: Session, user_id: uuid.UUID, commitment_id: uuid.UUID
+) -> CommitmentWithPayment:
+    commitment = savings_repo.get_commitment(session, user_id, commitment_id, include_deleted=True)
+    if commitment is None:
+        raise NotFoundError(f"Commitment {commitment_id} not found")
+    if commitment.deleted_at is None:
+        raise ConflictError("Commitment isn't deleted")
+    commitment.deleted_at = None
+    session.commit()
+    # Deleting required it to be pending, and a deleted commitment can't be paid
     return CommitmentWithPayment(commitment, None)

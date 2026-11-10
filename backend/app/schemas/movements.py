@@ -55,6 +55,9 @@ class MovementUpdate(BaseModel):
     description: Description | None = None
     # null removes the category; leaving it out keeps it
     category_id: uuid.UUID | None = None
+    # Expenses only. Another pending commitment moves the payment there; null unlinks it.
+    # Without `accounting_amount`, it becomes max(real, commitment) or, unlinked, the real amount
+    commitment_id: uuid.UUID | None = None
 
 
 class MovementRead(BaseModel):

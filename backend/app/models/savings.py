@@ -1,7 +1,7 @@
 """Savings mode tables: commitments, preferences and leftover releases."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, String, UniqueConstraint
@@ -30,6 +30,7 @@ class Commitment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(60))
     amount: Mapped[Decimal]
     expected_on: Mapped[date | None]
+    deleted_at: Mapped[datetime | None]
 
 
 class Preferences(TimestampMixin, Base):
@@ -51,7 +52,7 @@ class Preferences(TimestampMixin, Base):
 
 
 class LeftoverRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """Leftover ("sobrante") the user moved back to "available"."""
+    """Leftover ("sobrante") the user moved back to "available". Soft deleted to undo."""
 
     __tablename__ = "leftover_releases"
     __table_args__ = (CheckConstraint("amount > 0", name="amount_positive"),)
@@ -59,3 +60,4 @@ class LeftoverRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     amount: Mapped[Decimal]
     released_on: Mapped[date]
+    deleted_at: Mapped[datetime | None]

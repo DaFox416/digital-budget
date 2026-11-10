@@ -51,6 +51,23 @@ def update_commitment(
     )
 
 
+@router.delete("/commitments/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_commitment(
+    commitment_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> None:
+    """Soft delete a pending commitment; undo with POST /commitments/{id}/restore. A paid one
+    answers 409 (delete its payment first). Deleted ones give 404 everywhere else."""
+    savings_service.delete_commitment(session, user_id, commitment_id)
+
+
+@router.post("/commitments/{commitment_id}/restore")
+def restore_commitment(
+    commitment_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> CommitmentRead:
+    """Undo a delete. 409 if it isn't deleted."""
+    return _commitment_read(savings_service.restore_commitment(session, user_id, commitment_id))
+
+
 @router.get("/preferences")
 def get_preferences(session: SessionDep, user_id: CurrentUserId) -> PreferencesRead:
     preferences = savings_service.get_preferences(session, user_id)
@@ -74,3 +91,11 @@ def release_leftover(
     """Move leftover ("sobrante") back to "available", in multiples of the rounding."""
     release = savings_service.release_leftover(session, user_id, data)
     return LeftoverReleaseRead.model_validate(release)
+
+
+@router.delete("/leftover-releases/{release_id}", status_code=status.HTTP_204_NO_CONTENT)
+def undo_leftover_release(
+    release_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> None:
+    """Undo a release: the amount goes back from "available" to the leftover."""
+    savings_service.undo_leftover_release(session, user_id, release_id)

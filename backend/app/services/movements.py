@@ -173,12 +173,24 @@ def _update_expense_or_income(
         raise NotFoundError(f"Category {data.category_id} not found")
 
     account = _get_account(session, user_id, movement.account_id)
+    real = data.amount if data.amount is not None else abs(movement.real_amount)
     accounting_amount = data.accounting_amount
-    if movement.commitment_id is not None and data.amount is not None and accounting_amount is None:
+    commitment_id = movement.commitment_id
+    if "commitment_id" in sent and data.commitment_id != movement.commitment_id:
+        commitment_id = data.commitment_id
+        if commitment_id is None:
+            # Unlinked: like an expense created without a commitment
+            if accounting_amount is None:
+                accounting_amount = real
+        else:
+            commitment = _commitment_to_pay(session, user_id, movement.type, commitment_id)
+            if accounting_amount is None:
+                accounting_amount = commitment_payment_accounting(real, commitment.amount)
+    elif commitment_id is not None and data.amount is not None and accounting_amount is None:
         # Like when creating: a commitment payment keeps consuming the whole commitment
-        commitment = savings_repo.get_commitment(session, user_id, movement.commitment_id)
-        assert commitment is not None
-        accounting_amount = commitment_payment_accounting(data.amount, commitment.amount)
+        current = savings_repo.get_commitment(session, user_id, commitment_id)
+        assert current is not None
+        accounting_amount = commitment_payment_accounting(data.amount, current.amount)
     amounts = edit_amounts(
         movement.type,
         account.type,
@@ -188,6 +200,7 @@ def _update_expense_or_income(
     )
     movement.real_amount = amounts.real_amount
     movement.accounting_amount = amounts.accounting_amount
+    movement.commitment_id = commitment_id
     if data.occurred_on is not None:
         movement.occurred_on = data.occurred_on
     if data.description is not None:
@@ -199,7 +212,7 @@ def _update_expense_or_income(
 def _update_transfer(
     session: Session, user_id: uuid.UUID, movement: Movement, data: MovementUpdate, sent: set[str]
 ) -> None:
-    not_editable = sent & {"accounting_amount", "category_id"}
+    not_editable = sent & {"accounting_amount", "category_id", "commitment_id"}
     if not_editable:
         fields = ", ".join(sorted(not_editable))
         raise InvalidMovementError(f"Transfers and card payments can't edit: {fields}")
@@ -247,11 +260,11 @@ def restore_movement(session: Session, user_id: uuid.UUID, movement_id: uuid.UUI
         raise NotFoundError(f"Movement {movement_id} not found")
     if movement.deleted_at is None:
         raise ConflictError("Movement isn't deleted")
-    if (
-        movement.commitment_id is not None
-        and savings_repo.payment_id(session, user_id, movement.commitment_id) is not None
-    ):
-        raise ConflictError("Another expense already paid its commitment")
+    if movement.commitment_id is not None:
+        if savings_repo.get_commitment(session, user_id, movement.commitment_id) is None:
+            raise ConflictError("Its commitment was deleted; restore the commitment first")
+        if savings_repo.payment_id(session, user_id, movement.commitment_id) is not None:
+            raise ConflictError("Another expense already paid its commitment")
 
     for item in _with_transfer_legs(session, user_id, movement, include_deleted=True):
         item.deleted_at = None

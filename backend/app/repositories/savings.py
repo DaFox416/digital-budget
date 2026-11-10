@@ -26,7 +26,7 @@ def list_commitments(
     statement = (
         select(Commitment, payment.c.movement_id)
         .outerjoin(payment, payment.c.commitment_id == Commitment.id)
-        .where(Commitment.user_id == user_id)
+        .where(Commitment.user_id == user_id, Commitment.deleted_at.is_(None))
         .order_by(
             payment.c.movement_id.is_not(None),
             Commitment.expected_on.asc().nulls_last(),
@@ -43,11 +43,15 @@ def list_commitments(
 
 
 def get_commitment(
-    session: Session, user_id: uuid.UUID, commitment_id: uuid.UUID
+    session: Session, user_id: uuid.UUID, commitment_id: uuid.UUID, include_deleted: bool = False
 ) -> Commitment | None:
-    return session.scalar(
-        select(Commitment).where(Commitment.id == commitment_id, Commitment.user_id == user_id)
+    """A commitment of the user, or None. Deleted ones only with `include_deleted` (to restore)."""
+    statement = select(Commitment).where(
+        Commitment.id == commitment_id, Commitment.user_id == user_id
     )
+    if not include_deleted:
+        statement = statement.where(Commitment.deleted_at.is_(None))
+    return session.scalar(statement)
 
 
 def payment_id(session: Session, user_id: uuid.UUID, commitment_id: uuid.UUID) -> uuid.UUID | None:
@@ -66,7 +70,11 @@ def commitments_pending_total(session: Session, user_id: uuid.UUID) -> Decimal:
     statement = (
         select(func.coalesce(func.sum(Commitment.amount), 0))
         .outerjoin(payment, payment.c.commitment_id == Commitment.id)
-        .where(Commitment.user_id == user_id, payment.c.movement_id.is_(None))
+        .where(
+            Commitment.user_id == user_id,
+            Commitment.deleted_at.is_(None),
+            payment.c.movement_id.is_(None),
+        )
     )
     return Decimal(session.scalar(statement) or 0)
 
@@ -77,6 +85,19 @@ def get_preferences(session: Session, user_id: uuid.UUID) -> Preferences | None:
 
 def leftover_released_total(session: Session, user_id: uuid.UUID) -> Decimal:
     statement = select(func.coalesce(func.sum(LeftoverRelease.amount), 0)).where(
-        LeftoverRelease.user_id == user_id
+        LeftoverRelease.user_id == user_id, LeftoverRelease.deleted_at.is_(None)
     )
     return Decimal(session.scalar(statement) or 0)
+
+
+def get_leftover_release(
+    session: Session, user_id: uuid.UUID, release_id: uuid.UUID
+) -> LeftoverRelease | None:
+    """A non-deleted release of the user, or None."""
+    return session.scalar(
+        select(LeftoverRelease).where(
+            LeftoverRelease.id == release_id,
+            LeftoverRelease.user_id == user_id,
+            LeftoverRelease.deleted_at.is_(None),
+        )
+    )
