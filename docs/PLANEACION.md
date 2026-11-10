@@ -396,7 +396,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 - [x] Apartados, deuda de tarjetas y cuenta Sobrante en `domain/` con pruebas del invariante (2026-11-10; la fila de Sobrante en `/accounts` pasa a la v1)
 - [x] Regla de advertencias de nivel 1 y 2 con pruebas (2026-11-10; el endpoint llega el día 11)
-- [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz
+- [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz (2026-11-10: pasa al día 11, junto con la sección 9 de `docs/PRUEBAS-MANUALES.md`)
 - [x] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras, más `POST /leftover-releases` para liberar sobrante (2026-11-10)
 
 - [x] Borrar y restaurar apartados, deshacer una liberación de sobrante y cambiar el apartado de un pago (2026-11-10)
@@ -404,7 +404,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 **Mié 11 · Pruebas completas y captura convencional**
 
 - [ ] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero
-- [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después)
+- [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después); incluye la prueba con tus números reales del día 10
 - [ ] Panel de nuevo movimiento con valores por defecto y `Enter` para guardar
 - [ ] Campo de monto contable con redondeo propuesto en modo ahorro
 - [ ] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta
