@@ -16,3 +16,7 @@ class InvalidCreditConfigError(DomainError):
 
 class InvalidInstallmentPlanError(DomainError):
     pass
+
+
+class InvalidPreferencesError(DomainError):
+    pass
