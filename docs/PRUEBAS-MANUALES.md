@@ -116,3 +116,29 @@ Anota lo que fue tedioso, lento o confuso. Sirve para diseñar el formulario del
 
 1. Respalda la base con tus datos: `backups/budget-AAAA-MM-DD.dump`.
 2. Comparte con Claude las diferencias y fricciones (sin datos de tu cuenta) para decidir qué se corrige antes del demo.
+
+## 9. Segunda ronda (mié 11 nov): sistema completo y modo ahorro
+
+Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose down -v`.**
+
+1. Respalda primero: `backups/budget-2026-11-11-antes.dump`.
+2. Repite rápido la sección 5 con lo capturado desde el día 9 (estado de cuenta, deuda y saldo real) para confirmar que nada cambió con las migraciones del día 10.
+3. Sigue los pasos de esta tabla. Después de cada paso, revisa `GET /api/v1/summary`: las siete cifras deben cuadrar con
+   `real_balance = available + set_aside + card_debt + savings_goals + leftover − installments_pending`.
+
+| Paso | Cómo | Qué debe pasar |
+| --- | --- | --- |
+| Activar el modo ahorro | `PATCH /api/v1/preferences` con `{ "mode": "savings" }` | Responde `rounding_multiple: 10`; las cifras no cambian (el modo solo cambia lo que muestra el frontend) |
+| Apartar un gasto | `POST /api/v1/commitments` con `{ "name": "Luz", "amount": "500" }` | `set_aside` sube 500 y `available` baja 500 |
+| Gasto con contable redondeado | `POST /api/v1/movements` con `"amount": "387.56"` y `"accounting_amount": "400"` | `available` baja 400 y `leftover` sube 12.44 |
+| Compra con tarjeta redondeada | Igual, en la tarjeta (`"634"` y `"640"`) | Sube `card_debt` 634, baja `available` 640, `leftover` +6 |
+| Pagar el apartado | Gasto de `"487"` con `"commitment_id"` de la luz, sin contable | Contable −500; `set_aside` baja 500, `available` no cambia, `leftover` +13 |
+| Mover el pago a otro apartado | Crea "Agua" de 300 y `PATCH /api/v1/movements/{id}` con `{ "commitment_id": "<id agua>" }` | Contable −487 (el mayor entre 487 y 300); Luz vuelve a pendiente y Agua queda pagada |
+| Quitar el apartado del pago | `PATCH` con `{ "commitment_id": null }` | Contable = real (−487); los dos apartados quedan pendientes |
+| Borrar y deshacer un apartado | `DELETE /api/v1/commitments/{id}` y luego `POST /api/v1/commitments/{id}/restore` | Sale y vuelve a `set_aside`. Si está pagado responde 409: borra antes el pago |
+| Liberar sobrante | `GET /summary` → `leftover_releasable`; `POST /api/v1/leftover-releases` con ese monto | `available` sube y `leftover` baja por igual. Un monto que no sea múltiplo de 10 responde 422 |
+| Deshacer la liberación | `DELETE /api/v1/leftover-releases/{id}` | Las cifras vuelven a como estaban |
+| MSI en modo ahorro | Si tienes una compra a MSI vigente, revisa `installments_pending` | Igual a las mensualidades con fecha de cargo posterior a hoy |
+
+4. Compara `available` contra lo que tú calculas a mano (tu Excel). Si no coincide, anota el paso donde se separó y la diferencia, sin datos de tu cuenta.
+5. Borra o deshaz los apartados y liberaciones de prueba que no quieras conservar, y respalda: `backups/budget-2026-11-11.dump`.

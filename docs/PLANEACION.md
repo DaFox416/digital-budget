@@ -56,6 +56,10 @@
 | 2026-11-10 | Apartados (`commitments`): nombre, monto y fecha esperada opcional; la recurrencia queda para la v1. Se paga con un gasto que lleva `commitment_id`; el apartado está pagado mientras ese gasto no esté borrado (sin campo de estado). Sin contable explícito, el contable del pago es el mayor entre el real y el monto del apartado (luz de $487 con $500 apartados: $13 al sobrante). Un apartado pagado no se edita (409). |
 | 2026-11-10 | Preferencias: modo (simple o ahorro) y múltiplo de redondeo (entero de 1 a 1000, 10 por defecto). Sin fila guardada se responden los valores por defecto. El modo solo cambia lo que muestra el frontend: el backend guarda siempre ambos montos y `/summary` siempre da las siete cifras. |
 | 2026-11-10 | Las advertencias de nivel 1 y 2 son una regla del dominio desde el día 10; el endpoint que las expone llega el día 11 con el formulario de captura. |
+| 2026-11-10 | Borrar apartados: `DELETE /commitments/{id}` (borrado lógico, 204) y `POST /commitments/{id}/restore`. Solo se borran pendientes: uno pagado responde 409 (se borra antes el pago). Un apartado borrado da 404, no cuenta en el apartado y no se puede pagar; restaurar un pago cuyo apartado está borrado responde 409. |
+| 2026-11-10 | Deshacer una liberación de sobrante: `DELETE /leftover-releases/{id}` (borrado lógico, 204), siempre permitido porque solo hace crecer el sobrante. Sin endpoint para listarlas: el `id` llega en la respuesta del `POST`; el historial va con la cuenta Sobrante en la v1. |
+| 2026-11-10 | `PATCH /movements/{id}` acepta `commitment_id` en gastos: otro apartado pendiente mueve el pago (404 si no existe, 409 si ya está pagado) y `null` lo desliga. Sin contable explícito, el contable pasa a ser el mayor entre el real y el monto del nuevo apartado o, al desligarlo, el real. |
+| 2026-11-10 | El día 11 empieza con pruebas completas (suites de backend y frontend, `alembic check`, pre-commit en todo el repo y `docker compose up --build` desde cero) y una segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`), antes de la captura. Si la captura no alcanza, termina el jueves 12 y la pantalla de tarjeta detallada se hace más ligera. |
 
 ## Resumen
 
@@ -329,10 +333,11 @@ digital-budget/
 | `POST /installment-plans` | Crear compra a MSI y sus mensualidades |
 | `GET /cards/{id}/statement?cycle=` | Resumen del ciclo: cargos, MSI, pagado, por pagar, fechas |
 | `GET/POST/PATCH /commitments` | Apartados del modo ahorro |
+| `DELETE /commitments/{id}`, `POST /commitments/{id}/restore` | Borrar un apartado pendiente (borrado lógico) y deshacerlo |
 | `GET /summary` | Las siete cifras del modo ahorro y próximos pagos |
 | `POST /savings-goals`, `/{id}/deposit`, `/{id}/withdraw` | Crear metas de ahorro, depositar y retirar al completarlas |
 | `GET/PATCH /preferences` | Modo simple o ahorro y múltiplo de redondeo |
-| `POST /leftover-releases` | Liberar sobrante al disponible en múltiplos del redondeo |
+| `POST /leftover-releases`, `DELETE /leftover-releases/{id}` | Liberar sobrante al disponible en múltiplos del redondeo y deshacerlo |
 | `POST /auth/register`, `/auth/login` | Usuarios (v1, semana 1) |
 
 **Listo para deploy sin costo hoy:** configuración por variables de entorno, contenedores con imágenes de producción, migraciones automáticas al arrancar, CORS configurable y `user_id` en todas las tablas desde el día 1, aunque el demo tenga un solo usuario.
@@ -394,8 +399,12 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz
 - [x] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras, más `POST /leftover-releases` para liberar sobrante (2026-11-10)
 
-**Mié 11 · Captura convencional**
+- [x] Borrar y restaurar apartados, deshacer una liberación de sobrante y cambiar el apartado de un pago (2026-11-10)
 
+**Mié 11 · Pruebas completas y captura convencional**
+
+- [ ] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero
+- [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después)
 - [ ] Panel de nuevo movimiento con valores por defecto y `Enter` para guardar
 - [ ] Campo de monto contable con redondeo propuesto en modo ahorro
 - [ ] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta
