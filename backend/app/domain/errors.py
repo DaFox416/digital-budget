@@ -20,3 +20,7 @@ class InvalidInstallmentPlanError(DomainError):
 
 class InvalidPreferencesError(DomainError):
     pass
+
+
+class InvalidCommitmentError(DomainError):
+    pass

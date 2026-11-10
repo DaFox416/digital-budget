@@ -6,15 +6,19 @@ from app.models.category import Category
 from app.models.credit_config import CreditConfig
 from app.models.installment_plan import Installment, InstallmentPlan
 from app.models.movement import Movement
+from app.models.savings import Commitment, LeftoverRelease, Preferences
 from app.models.user import User
 
 __all__ = [
     "Account",
     "Base",
     "Category",
+    "Commitment",
     "CreditConfig",
     "Installment",
     "InstallmentPlan",
+    "LeftoverRelease",
     "Movement",
+    "Preferences",
     "User",
 ]

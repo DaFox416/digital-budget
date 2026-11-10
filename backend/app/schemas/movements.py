@@ -22,6 +22,9 @@ class MovementCreate(BaseModel):
     occurred_on: date | None = None
     description: Description = ""
     category_id: uuid.UUID | None = None
+    # Expenses only: the commitment ("apartado") this expense pays. Without an explicit
+    # accounting amount, it takes the larger of the amount and the commitment's amount
+    commitment_id: uuid.UUID | None = None
 
 
 class TransferCreate(BaseModel):
@@ -67,6 +70,7 @@ class MovementRead(BaseModel):
     description: str
     category_id: uuid.UUID | None
     transfer_group_id: uuid.UUID | None
+    commitment_id: uuid.UUID | None
     created_at: datetime
 
 

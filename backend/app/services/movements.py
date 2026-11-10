@@ -16,10 +16,12 @@ from app.domain.movements import (
     plan_transfer,
     signed_amounts,
 )
-from app.models import Account, Movement
+from app.domain.savings import commitment_payment_accounting
+from app.models import Account, Commitment, Movement
 from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
 from app.repositories import movements as movements_repo
+from app.repositories import savings as savings_repo
 from app.schemas.movements import MovementCreate, MovementUpdate, TransferCreate
 from app.services.clock import today
 from app.services.errors import ConflictError, NotFoundError
@@ -54,7 +56,13 @@ def create_movement(session: Session, user_id: uuid.UUID, data: MovementCreate) 
     ):
         raise NotFoundError(f"Category {data.category_id} not found")
 
-    amounts = signed_amounts(data.type, account.type, data.amount, data.accounting_amount)
+    accounting_amount = data.accounting_amount
+    if data.commitment_id is not None:
+        commitment = _commitment_to_pay(session, user_id, data.type, data.commitment_id)
+        if accounting_amount is None:
+            accounting_amount = commitment_payment_accounting(data.amount, commitment.amount)
+
+    amounts = signed_amounts(data.type, account.type, data.amount, accounting_amount)
 
     movement = Movement(
         user_id=user_id,
@@ -65,10 +73,24 @@ def create_movement(session: Session, user_id: uuid.UUID, data: MovementCreate) 
         occurred_on=data.occurred_on or today(),
         description=data.description,
         category_id=data.category_id,
+        commitment_id=data.commitment_id,
     )
     session.add(movement)
     session.commit()
     return movement
+
+
+def _commitment_to_pay(
+    session: Session, user_id: uuid.UUID, movement_type: MovementType, commitment_id: uuid.UUID
+) -> Commitment:
+    if movement_type is not MovementType.EXPENSE:
+        raise InvalidMovementError("Only expenses can pay a commitment")
+    commitment = savings_repo.get_commitment(session, user_id, commitment_id)
+    if commitment is None:
+        raise NotFoundError(f"Commitment {commitment_id} not found")
+    if savings_repo.payment_id(session, user_id, commitment_id) is not None:
+        raise ConflictError("The commitment is already paid")
+    return commitment
 
 
 def create_transfer(session: Session, user_id: uuid.UUID, data: TransferCreate) -> TransferResult:
@@ -151,12 +173,18 @@ def _update_expense_or_income(
         raise NotFoundError(f"Category {data.category_id} not found")
 
     account = _get_account(session, user_id, movement.account_id)
+    accounting_amount = data.accounting_amount
+    if movement.commitment_id is not None and data.amount is not None and accounting_amount is None:
+        # Like when creating: a commitment payment keeps consuming the whole commitment
+        commitment = savings_repo.get_commitment(session, user_id, movement.commitment_id)
+        assert commitment is not None
+        accounting_amount = commitment_payment_accounting(data.amount, commitment.amount)
     amounts = edit_amounts(
         movement.type,
         account.type,
         SignedAmounts(movement.real_amount, movement.accounting_amount),
         data.amount,
-        data.accounting_amount,
+        accounting_amount,
     )
     movement.real_amount = amounts.real_amount
     movement.accounting_amount = amounts.accounting_amount
@@ -219,6 +247,11 @@ def restore_movement(session: Session, user_id: uuid.UUID, movement_id: uuid.UUI
         raise NotFoundError(f"Movement {movement_id} not found")
     if movement.deleted_at is None:
         raise ConflictError("Movement isn't deleted")
+    if (
+        movement.commitment_id is not None
+        and savings_repo.payment_id(session, user_id, movement.commitment_id) is not None
+    ):
+        raise ConflictError("Another expense already paid its commitment")
 
     for item in _with_transfer_legs(session, user_id, movement, include_deleted=True):
         item.deleted_at = None

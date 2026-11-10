@@ -57,3 +57,18 @@ def movements_total(session: Session, user_id: uuid.UUID, account_id: uuid.UUID)
         Movement.deleted_at.is_(None),
     )
     return Decimal(session.scalar(statement) or 0)
+
+
+def accounting_totals(session: Session, user_id: uuid.UUID) -> dict[uuid.UUID, Decimal]:
+    """Account id -> sum of accounting amounts of its non-deleted movements."""
+    statement = (
+        select(Movement.account_id, func.sum(Movement.accounting_amount))
+        .where(Movement.user_id == user_id, Movement.deleted_at.is_(None))
+        .group_by(Movement.account_id)
+    )
+    result: dict[uuid.UUID, Decimal] = {}
+    for row in session.execute(statement):
+        account_id: uuid.UUID = row[0]
+        total: Decimal = row[1]
+        result[account_id] = total
+    return result

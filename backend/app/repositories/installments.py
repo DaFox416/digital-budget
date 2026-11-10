@@ -3,8 +3,9 @@
 import uuid
 from collections.abc import Sequence
 from datetime import date
+from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Installment, InstallmentPlan, Movement
@@ -47,3 +48,21 @@ def list_plans_for_account(
         InstallmentPlan.user_id == user_id, InstallmentPlan.account_id == account_id
     )
     return session.scalars(statement).all()
+
+
+def charged_accounting_total(session: Session, user_id: uuid.UUID, on: date) -> Decimal:
+    """Accounting amounts of installments already charged to "available" on `on`.
+
+    Plans whose purchase was deleted are left out.
+    """
+    statement = (
+        select(func.coalesce(func.sum(Installment.accounting_amount), 0))
+        .join(InstallmentPlan, Installment.plan_id == InstallmentPlan.id)
+        .join(Movement, InstallmentPlan.movement_id == Movement.id)
+        .where(
+            Installment.user_id == user_id,
+            Installment.charged_on <= on,
+            Movement.deleted_at.is_(None),
+        )
+    )
+    return Decimal(session.scalar(statement) or 0)

@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 from app.domain.balances import credit_debt
 from app.domain.cycles import CardCycle, next_payment_cycle
 from app.domain.installments import ScheduledInstallment, pending_to_charge
-from app.domain.summary import summary_totals
+from app.domain.savings import SavingsFigures
 from app.repositories import installments as installments_repo
+from app.services import savings as savings_service
 from app.services import statements as statements_service
 from app.services.accounts import cycle_config, list_accounts
 from app.services.clock import today
@@ -35,17 +36,15 @@ class CardSummary:
 @dataclass(frozen=True)
 class Summary:
     on: date
-    real_balance: Decimal
-    card_debt: Decimal
-    installments_pending: Decimal
+    figures: SavingsFigures
+    leftover_releasable: Decimal
     cards: list[CardSummary]
 
 
 def get_summary(session: Session, user_id: uuid.UUID) -> Summary:
-    """Home screen figures: real balance, card debt, MSI pending and each card's next payment."""
+    """The seven savings mode figures and each card's next payment."""
     on = today()
     accounts = list_accounts(session, user_id)
-    totals = summary_totals((item.account.type, item.balance) for item in accounts)
 
     pending_by_card: defaultdict[uuid.UUID, list[ScheduledInstallment]] = defaultdict(list)
     for account_id, installment in installments_repo.list_pending(session, user_id, on):
@@ -82,10 +81,10 @@ def get_summary(session: Session, user_id: uuid.UUID) -> Summary:
             )
         )
 
+    current = savings_service.current_figures(session, user_id, on)
     return Summary(
         on=on,
-        real_balance=totals.real_balance,
-        card_debt=totals.card_debt,
-        installments_pending=sum((card.installments_pending for card in cards), Decimal("0.00")),
+        figures=current.figures,
+        leftover_releasable=current.leftover_releasable,
         cards=cards,
     )

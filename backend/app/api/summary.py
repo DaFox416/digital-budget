@@ -9,13 +9,19 @@ router = APIRouter(tags=["summary"])
 
 @router.get("/summary")
 def get_summary(session: SessionDep, user_id: CurrentUserId) -> SummaryRead:
-    """Real balance, card debt, MSI pending to charge and the next payment of each card."""
+    """The seven savings mode figures and the next payment of each card."""
     summary = summary_service.get_summary(session, user_id)
+    figures = summary.figures
     return SummaryRead(
         on=summary.on,
-        real_balance=summary.real_balance,
-        card_debt=summary.card_debt,
-        installments_pending=summary.installments_pending,
+        real_balance=figures.real_balance,
+        available=figures.available,
+        set_aside=figures.set_aside,
+        card_debt=figures.card_debt,
+        savings_goals=figures.savings_goals,
+        leftover=figures.leftover,
+        leftover_releasable=summary.leftover_releasable,
+        installments_pending=figures.installments_pending,
         cards=[
             CardSummaryRead(
                 account_id=card.account_id,
