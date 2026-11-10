@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-09
+Última actualización: 2026-11-10
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -48,6 +48,8 @@
 | 2026-11-09 | Primera pantalla: resumen (saldo real, deuda de tarjetas, MSI por cargar; disponible se agrega el día 10, sin hueco vacío mientras tanto), una tarjeta por cuenta y los últimos 50 movimientos por día. Una columna en móvil y dos desde `lg`. Solo lectura: crear, editar y borrar llegan con la captura del día 11. |
 | 2026-11-09 | En la pantalla, cada sección maneja su propio estado de carga, error (con "Reintentar") y vacío, para que una llamada que falla no deje la página en blanco. El frontend no hace cuentas con dinero: la deuda y el próximo pago de cada tarjeta vienen de `/summary`. Una transferencia o pago de tarjeta se muestra como una sola fila. |
 | 2026-11-09 | Las fechas de la API (`AAAA-MM-DD`) nunca pasan por `new Date(iso)`, que las lee como medianoche UTC y en México las muestra un día antes. `lib/dates.ts` las separa y formatea en UTC con `Intl` (es-MX: "vie 20 de nov", "5 dic"). |
+| 2026-11-10 | Menos pruebas: un caso por regla (sin variantes parametrizadas del mismo caso), solo los bordes que están en este registro, y las validaciones se prueban en el dominio, no otra vez en la API. En la API, el camino feliz de cada endpoint y solo los errores con decisión propia (404, 409, edición rechazada sin cambios). Meta: de 265 a unas 115 pruebas en el backend. El invariante del modo ahorro se cubre con pruebas de escenario que lo revisan después de cada paso. |
+| 2026-11-10 | Advertencias en compras a MSI: nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real. Si se cumplen ambas, solo el nivel 2. |
 
 ## Resumen
 
@@ -201,7 +203,7 @@ El modo ahorro existe para no gastar dinero que no tienes. Por eso, al capturar 
 
 Si se cumplen ambas, solo se muestra el nivel 2. Aplica a cualquier compra con tarjeta, cerca o lejos de la quincena, incluidas las MSI.
 
-**Por definir (día 10):** en MSI, propuesta de nivel 1 si el contable de la primera mensualidad supera el disponible, y nivel 2 si el total real supera el saldo real.
+**En MSI (2026-11-10):** nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real.
 
 **Cuentas de ahorro con meta**
 
@@ -376,7 +378,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] `PATCH /accounts/{id}` (editar cuenta y su configuración de crédito), agregado el 2026-11-09 para poder corregir errores antes de las pruebas manuales con datos reales
 - [x] Generar cliente TypeScript desde OpenAPI (con TanStack Query y `formatMoney`, 2026-11-09)
 - [x] Layout con lista de movimientos y tarjetas de cuenta (2026-11-09, revisado por el usuario en el navegador)
-- [ ] Sesión de pruebas manuales con datos reales y respaldo de la BD
+- [x] Sesión de pruebas manuales con datos reales y respaldo de la BD (2026-11-09, sin diferencias contra el estado de cuenta)
 
 **Mar 10 · Modo ahorro en el dominio**
 
