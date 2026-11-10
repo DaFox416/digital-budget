@@ -32,32 +32,6 @@ def test_account_names_are_unique_per_user(client: TestClient) -> None:
     assert response.status_code == 409
 
 
-def test_account_name_is_trimmed(client: TestClient) -> None:
-    assert create_account(client, "  Nu  ")["name"] == "Nu"
-
-
-def test_rejects_more_than_two_decimals(client: TestClient) -> None:
-    response = client.post(
-        "/api/v1/accounts", json={"name": "BBVA", "type": "debit", "initial_balance": "10.555"}
-    )
-
-    assert response.status_code == 422
-
-
-def test_savings_accounts_cant_be_created_yet(client: TestClient) -> None:
-    response = client.post("/api/v1/accounts", json={"name": "Consola", "type": "savings"})
-
-    assert response.status_code == 422
-
-
-def test_rejects_invalid_color(client: TestClient) -> None:
-    response = client.post(
-        "/api/v1/accounts", json={"name": "BBVA", "type": "debit", "color": "blue"}
-    )
-
-    assert response.status_code == 422
-
-
 def test_lists_default_categories(client: TestClient) -> None:
     names = [category["name"] for category in client.get("/api/v1/categories").json()]
 

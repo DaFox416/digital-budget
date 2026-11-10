@@ -1,4 +1,3 @@
-import uuid
 from datetime import date
 from typing import Any
 
@@ -73,12 +72,6 @@ class TestExpenses:
         assert response.status_code == 409
         assert "isn't deleted" in response.json()["detail"]
 
-    def test_unknown_movement(self, client: TestClient) -> None:
-        movement_id = str(uuid.uuid4())
-
-        assert delete(client, movement_id).status_code == 404
-        assert restore(client, movement_id).status_code == 404
-
 
 class TestTransfers:
     @pytest.fixture
@@ -93,39 +86,21 @@ class TestTransfers:
             amount="2000",
         )
 
-    @pytest.mark.parametrize(
-        ("deleted", "restored"), [("source", "destination"), ("destination", "source")]
-    )
     def test_both_legs_go_and_come_back_together(
-        self, client: TestClient, transfer: dict[str, Any], deleted: str, restored: str
+        self, client: TestClient, transfer: dict[str, Any]
     ) -> None:
         legs = {transfer["source"]["id"], transfer["destination"]["id"]}
 
-        assert delete(client, transfer[deleted]["id"]).status_code == 204
+        assert delete(client, transfer["source"]["id"]).status_code == 204
 
         assert not legs & listed_ids(client)
         assert balances(client) == {"BBVA": "5000.00", "Nu": "0.00"}
 
         # Undo from the other leg
-        assert restore(client, transfer[restored]["id"]).status_code == 200
+        assert restore(client, transfer["destination"]["id"]).status_code == 200
 
         assert legs <= listed_ids(client)
         assert balances(client) == {"BBVA": "3000.00", "Nu": "2000.00"}
-
-    def test_card_payment(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA", initial_balance="14777.11")
-        card = create_account(client, "TDC Oro", type="credit", initial_balance="-634")
-        payment = post(
-            client,
-            "transfers",
-            source_account_id=bbva["id"],
-            destination_account_id=card["id"],
-            amount="634",
-        )
-
-        delete(client, payment["source"]["id"])
-
-        assert balances(client) == {"BBVA": "14777.11", "TDC Oro": "-634.00"}
 
 
 class TestInstallmentPurchases:

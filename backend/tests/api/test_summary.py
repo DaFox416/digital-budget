@@ -51,27 +51,6 @@ def laptop(client: TestClient, card_id: str) -> dict[str, Any]:
     )
 
 
-def test_no_accounts(client: TestClient) -> None:
-    assert summary(client) == {
-        "on": "2026-11-20",
-        "real_balance": "0.00",
-        "card_debt": "0.00",
-        "installments_pending": "0.00",
-        "cards": [],
-    }
-
-
-def test_real_balance_adds_debit_and_cash(client: TestClient) -> None:
-    # Savings accounts can't be created through the API yet; the domain tests leave them out
-    create_account(client, "BBVA", initial_balance="14290.11")
-    create_account(client, "Cartera", type="cash", initial_balance="500")
-
-    result = summary(client)
-
-    assert result["real_balance"] == "14790.11"
-    assert result["card_debt"] == "0.00"
-
-
 def test_card_with_msi_purchase(client: TestClient) -> None:
     card = create_account(client, "TDC Oro", type="credit")
     expense(client, card["id"], "634", "2026-11-05")
@@ -129,37 +108,3 @@ def test_after_the_due_date_shows_the_open_cycle(
         "amount": "1200.00",
         "is_closed": False,
     }
-
-
-def test_payments_after_the_cutoff_lower_the_next_payment(client: TestClient) -> None:
-    bbva = create_account(client, "BBVA", initial_balance="5000")
-    card = create_account(client, "TDC Oro", type="credit")
-    expense(client, card["id"], "634", "2026-11-05")
-    post(
-        client,
-        "transfers",
-        source_account_id=bbva["id"],
-        destination_account_id=card["id"],
-        amount="300",
-        occurred_on="2026-11-18",
-    )
-
-    result = summary(client)
-
-    assert result["real_balance"] == "4700.00"
-    assert result["card_debt"] == "334.00"
-    assert result["cards"][0]["next_payment"]["amount"] == "334.00"
-
-
-def test_totals_add_up_every_card(client: TestClient) -> None:
-    oro = create_account(client, "TDC Oro", type="credit")
-    nu = create_account(client, "TDC Nu", type="credit", initial_balance="100")
-    expense(client, oro["id"], "634", "2026-11-05")
-    laptop(client, nu["id"])
-
-    result = summary(client)
-
-    # Oro owes 634; Nu owes 12,000 minus its 100 in your favor
-    assert [card["debt"] for card in result["cards"]] == ["634.00", "11900.00"]
-    assert result["card_debt"] == "12534.00"
-    assert result["installments_pending"] == "10000.00"

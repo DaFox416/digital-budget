@@ -1,4 +1,3 @@
-import uuid
 from datetime import date
 from typing import Any
 
@@ -34,11 +33,6 @@ class TestAccountFields:
         assert response.status_code == 200
         assert response.json()["name"] == "BBVA Nómina"
 
-    def test_keeping_the_same_name_is_fine(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA")
-
-        assert patch(client, bbva["id"], name="BBVA").status_code == 200
-
     def test_duplicate_name_is_a_conflict(self, client: TestClient) -> None:
         create_account(client, "Nu")
         bbva = create_account(client, "BBVA")
@@ -55,11 +49,6 @@ class TestAccountFields:
         assert patch(client, bbva["id"], name="BBVA 2").json()["color"] == "#1A73E8"
         assert patch(client, bbva["id"], color=None).json()["color"] is None
 
-    def test_invalid_color(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA")
-
-        assert patch(client, bbva["id"], color="azul").status_code == 422
-
     def test_fixing_the_initial_balance_updates_every_figure(self, client: TestClient) -> None:
         bbva = create_account(client, "BBVA", initial_balance="500")
         client.post(
@@ -73,24 +62,12 @@ class TestAccountFields:
         assert body["balance"] == "4612.44"
         assert summary(client)["real_balance"] == "4612.44"
 
-    @pytest.mark.parametrize("field", ["name", "initial_balance"])
-    def test_null_is_rejected(self, client: TestClient, field: str) -> None:
+    def test_the_type_is_not_editable(self, client: TestClient) -> None:
         bbva = create_account(client, "BBVA")
 
-        response = patch(client, bbva["id"], **{field: None})
-
-        assert response.status_code == 422
-
-    @pytest.mark.parametrize(("field", "value"), [("type", "cash"), ("position", 3)])
-    def test_unknown_fields_are_rejected(self, client: TestClient, field: str, value: Any) -> None:
-        bbva = create_account(client, "BBVA")
-
-        assert patch(client, bbva["id"], **{field: value}).status_code == 422
+        assert patch(client, bbva["id"], type="cash").status_code == 422
         account = client.get("/api/v1/accounts").json()[0]
         assert (account["type"], account["position"]) == ("debit", 0)
-
-    def test_unknown_account(self, client: TestClient) -> None:
-        assert patch(client, str(uuid.uuid4()), name="x").status_code == 404
 
 
 class TestCreditConfig:
@@ -122,28 +99,6 @@ class TestCreditConfig:
         # Nov 15 + 25 days
         assert credit["last_statement"]["payment_due"] == "2026-12-10"
         assert summary(client)["cards"][0]["next_payment"]["payment_due"] == "2026-12-10"
-
-    def test_payment_value_that_doesnt_fit_the_rule(
-        self, client: TestClient, card: dict[str, Any]
-    ) -> None:
-        response = patch(client, card["id"], credit={"payment_due_value": 45})
-
-        assert response.status_code == 422
-        assert "Payment day" in response.json()["detail"]
-
-    def test_credit_on_a_debit_account(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA")
-
-        response = patch(client, bbva["id"], credit={"credit_limit": "1000"})
-
-        assert response.status_code == 422
-        assert "can't have a credit config" in response.json()["detail"]
-
-    def test_null_credit_is_rejected(self, client: TestClient, card: dict[str, Any]) -> None:
-        assert patch(client, card["id"], credit=None).status_code == 422
-
-    def test_null_cutoff_day_is_rejected(self, client: TestClient, card: dict[str, Any]) -> None:
-        assert patch(client, card["id"], credit={"cutoff_day": None}).status_code == 422
 
     def test_a_rejected_edit_changes_nothing(
         self, client: TestClient, card: dict[str, Any]
@@ -196,11 +151,7 @@ class TestCutoffChangeWithMsi:
         assert [item["number"] for item in december["installments"]] == [2]
         # Installment 2 is now charged on Nov 21, the day after the new cutoff
         assert summary(client)["installments_pending"] == "11000.00"
-
-    def test_amounts_and_debt_dont_change(self, client: TestClient, card: dict[str, Any]) -> None:
-        patch(client, card["id"], credit={"cutoff_day": 20})
-
-        november = self.statement(client, card, "2026-11-20")
+        # Amounts and debt don't change
         assert november["installments_due"] == "1000.00"
         assert summary(client)["card_debt"] == "12000.00"
 

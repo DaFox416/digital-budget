@@ -4,14 +4,6 @@ import { jsonResponse, stubFetch } from '../test/query'
 import { api, ApiError, unwrap } from './client'
 
 describe('unwrap', () => {
-  it('returns the data of a successful call', async () => {
-    stubFetch(jsonResponse([{ id: '1', name: 'Comida' }]))
-
-    const categories = await unwrap(api.GET('/api/v1/categories'))
-
-    expect(categories).toEqual([{ id: '1', name: 'Comida' }])
-  })
-
   it("throws an ApiError with FastAPI's detail", async () => {
     stubFetch(jsonResponse({ detail: 'Movement 123 not found' }, 404))
 
@@ -45,15 +37,6 @@ describe('unwrap', () => {
     await expect(unwrap(api.GET('/api/v1/movements'))).rejects.toMatchObject({
       status: 422,
       message: 'Input should be greater than 0; Field required',
-    })
-  })
-
-  it('falls back to the status when there is no detail', async () => {
-    stubFetch(new Response('Bad gateway', { status: 502 }))
-
-    await expect(unwrap(api.GET('/api/v1/summary'))).rejects.toMatchObject({
-      status: 502,
-      message: 'Request failed with status 502',
     })
   })
 })

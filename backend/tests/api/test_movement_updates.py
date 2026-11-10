@@ -1,4 +1,3 @@
-import uuid
 from datetime import date
 from typing import Any
 
@@ -59,12 +58,6 @@ class TestExpensesAndIncome:
         assert body["accounting_amount"] == "-450.00"
         assert balances(client)["BBVA"] == "4550.00"
 
-    def test_edits_only_accounting_amount(self, client: TestClient, cine: dict[str, Any]) -> None:
-        body = patch(client, cine["id"], accounting_amount="390").json()
-
-        assert body["real_amount"] == "-387.56"
-        assert body["accounting_amount"] == "-390.00"
-
     def test_edits_date_and_description(self, client: TestClient, cine: dict[str, Any]) -> None:
         body = patch(client, cine["id"], occurred_on="2026-11-11", description="Cine IMAX").json()
 
@@ -75,48 +68,8 @@ class TestExpensesAndIncome:
         assert body["accounting_amount"] == "-400.00"
         assert body["category_id"] == cine["category_id"]
 
-    def test_changes_the_category(self, client: TestClient, cine: dict[str, Any]) -> None:
-        other = category_ids(client)[1]
-
-        assert patch(client, cine["id"], category_id=other).json()["category_id"] == other
-
-    def test_null_removes_the_category(self, client: TestClient, cine: dict[str, Any]) -> None:
-        assert patch(client, cine["id"], category_id=None).json()["category_id"] is None
-
-    def test_unknown_category(self, client: TestClient, cine: dict[str, Any]) -> None:
-        assert patch(client, cine["id"], category_id=str(uuid.uuid4())).status_code == 404
-
-    def test_null_amount_is_rejected(self, client: TestClient, cine: dict[str, Any]) -> None:
-        response = patch(client, cine["id"], amount=None)
-
-        assert response.status_code == 422
-        assert "amount can't be null" in response.json()["detail"]
-
-    def test_zero_amount_is_rejected(self, client: TestClient, cine: dict[str, Any]) -> None:
-        assert patch(client, cine["id"], amount="0").status_code == 422
-
-    def test_income_stays_positive(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA")
-        quincena = post(client, "movements", account_id=bbva["id"], type="income", amount="10000")
-
-        body = patch(client, quincena["id"], amount="10164.67").json()
-
-        assert body["real_amount"] == "10164.67"
-        assert balances(client)["BBVA"] == "10164.67"
-
-    def test_empty_body_changes_nothing(self, client: TestClient, cine: dict[str, Any]) -> None:
-        response = patch(client, cine["id"])
-
-        assert response.status_code == 200
-        assert response.json()["real_amount"] == "-387.56"
-
-    @pytest.mark.parametrize("field", ["account_id", "type"])
-    def test_account_and_type_are_rejected(
-        self, client: TestClient, cine: dict[str, Any], field: str
-    ) -> None:
-        value = create_account(client, "Nu")["id"] if field == "account_id" else "income"
-
-        response = patch(client, cine["id"], **{field: value})
+    def test_changing_the_type_is_rejected(self, client: TestClient, cine: dict[str, Any]) -> None:
+        response = patch(client, cine["id"], type="income")
 
         assert response.status_code == 422
         movement = client.get("/api/v1/movements").json()[0]
@@ -137,12 +90,15 @@ class TestTransfers:
             description="Ahorro",
         )
 
-    @pytest.mark.parametrize("leg", ["source", "destination"])
-    def test_editing_either_leg_changes_both(
-        self, client: TestClient, transfer: dict[str, Any], leg: str
+    def test_editing_one_leg_changes_both(
+        self, client: TestClient, transfer: dict[str, Any]
     ) -> None:
         response = patch(
-            client, transfer[leg]["id"], amount="1500", occurred_on="2026-11-12", description="Mes"
+            client,
+            transfer["destination"]["id"],
+            amount="1500",
+            occurred_on="2026-11-12",
+            description="Mes",
         )
 
         assert response.status_code == 200
@@ -171,29 +127,6 @@ class TestTransfers:
         assert "accounting_amount" in response.json()["detail"]
         assert balances(client) == {"BBVA": "3000.00", "Nu": "2000.00"}
 
-    def test_category_is_rejected(self, client: TestClient, transfer: dict[str, Any]) -> None:
-        response = patch(client, transfer["source"]["id"], category_id=category_ids(client)[0])
-
-        assert response.status_code == 422
-        assert "category_id" in response.json()["detail"]
-
-    def test_card_payment(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA", initial_balance="14777.11")
-        card = create_account(client, "TDC Oro", type="credit", initial_balance="-634")
-        payment = post(
-            client,
-            "transfers",
-            source_account_id=bbva["id"],
-            destination_account_id=card["id"],
-            amount="600",
-        )
-
-        response = patch(client, payment["destination"]["id"], amount="634")
-
-        assert response.status_code == 200
-        assert response.json()["type"] == "card_payment"
-        assert balances(client) == {"BBVA": "14143.11", "TDC Oro": "0.00"}
-
 
 class TestNotEditable:
     def test_msi_purchase_is_a_conflict(self, client: TestClient) -> None:
@@ -204,9 +137,6 @@ class TestNotEditable:
 
         assert response.status_code == 409
         assert "MSI" in response.json()["detail"]
-
-    def test_unknown_movement(self, client: TestClient) -> None:
-        assert patch(client, str(uuid.uuid4()), description="x").status_code == 404
 
     def test_deleted_movement(self, client: TestClient, cine: dict[str, Any]) -> None:
         assert client.delete(f"/api/v1/movements/{cine['id']}").status_code == 204

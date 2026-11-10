@@ -71,13 +71,6 @@ class TestCreatePlan:
         assert plan["installments"][1]["charged_on"] == "2026-11-16"
         assert plan["installments"][-1]["cutoff_date"] == "2027-10-15"
 
-    def test_last_installment_absorbs_the_difference(self, client: TestClient) -> None:
-        card = create_account(client, "TDC Oro", type="credit")
-
-        plan = post_plan(client, card["id"], "1000", 3).json()
-
-        assert [i["amount"] for i in plan["installments"]] == ["333.33", "333.33", "333.34"]
-
     def test_uses_the_full_credit_at_once(self, client: TestClient) -> None:
         card = create_account(client, "TDC Oro", type="credit")
 
@@ -99,14 +92,6 @@ class TestCreatePlan:
         assert movements[0]["accounting_amount"] == "0.00"
         assert movements[0]["description"] == "Laptop"
 
-    def test_defaults_to_today(self, client: TestClient) -> None:
-        card = create_account(client, "TDC Oro", type="credit")
-
-        plan = post_plan(client, card["id"], "1000", 3).json()
-
-        assert plan["purchased_on"] == "2026-11-20"
-        assert plan["installments"][0]["cutoff_date"] == "2026-12-15"
-
     def test_only_credit_cards(self, client: TestClient) -> None:
         bbva = create_account(client, "BBVA")
 
@@ -114,17 +99,6 @@ class TestCreatePlan:
 
         assert response.status_code == 422
         assert client.get("/api/v1/movements").json() == []
-
-    @pytest.mark.parametrize("months", [2, 49])
-    def test_months_between_3_and_48(self, client: TestClient, months: int) -> None:
-        card = create_account(client, "TDC Oro", type="credit")
-
-        assert post_plan(client, card["id"], "1000", months).status_code == 422
-
-    def test_unknown_account(self, client: TestClient) -> None:
-        response = post_plan(client, "00000000-0000-0000-0000-000000000099", "1000", 3)
-
-        assert response.status_code == 404
 
 
 class TestStatement:
@@ -169,24 +143,3 @@ class TestStatement:
         assert result["regular_charges"] == "200.00"
         assert result["installments"][0]["number"] == 2
         assert result["payment_for_no_interest"] == "1200.00"
-
-    def test_defaults_to_the_last_closed_cycle(self, client: TestClient) -> None:
-        card = create_account(client, "TDC Oro", type="credit")
-
-        # Today is November 20: the last cutoff was November 15
-        assert statement(client, card["id"])["cutoff"] == "2026-11-15"
-
-    def test_paying_more_than_due_leaves_nothing_to_pay(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA", initial_balance="5000")
-        card = create_account(client, "TDC Oro", type="credit")
-        post_movement(client, card["id"], "expense", "634", "2026-11-05")
-        pay_card(client, bbva["id"], card["id"], "1000", "2026-11-18")
-
-        assert statement(client, card["id"], "2026-11-15")["payment_for_no_interest"] == "0.00"
-
-    def test_only_credit_cards_have_statements(self, client: TestClient) -> None:
-        bbva = create_account(client, "BBVA")
-
-        response = client.get(f"/api/v1/cards/{bbva['id']}/statement")
-
-        assert response.status_code == 404

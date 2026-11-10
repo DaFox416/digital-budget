@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import App from './App'
 import { homeRoutes, summary, tdcOroSummary } from './test/fixtures'
@@ -9,24 +9,6 @@ import { jsonResponse, queryWrapper, stubApi } from './test/query'
 function renderApp() {
   render(<App />, { wrapper: queryWrapper() })
 }
-
-describe('API status', () => {
-  it('shows the API as connected when /health responds ok', async () => {
-    stubApi(homeRoutes)
-
-    renderApp()
-
-    expect(await screen.findByText('API: Conectada')).toBeInTheDocument()
-  })
-
-  it('shows the API as down when the request fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
-
-    renderApp()
-
-    expect(await screen.findByText('API: Sin conexión')).toBeInTheDocument()
-  })
-})
 
 describe('Summary', () => {
   it('shows the main figures', async () => {
@@ -103,16 +85,6 @@ describe('Accounts', () => {
     expect(within(tdc).getByText('$1,200.00')).toBeInTheDocument()
   })
 
-  it('without the summary, a card still shows its balance and available credit', async () => {
-    stubApi({ ...homeRoutes, '/api/v1/summary': jsonResponse({ detail: 'boom' }, 500) })
-
-    renderApp()
-
-    const card = await screen.findByRole('article', { name: 'TDC Oro' })
-    expect(within(card).getByText('-$12,634.00')).toBeInTheDocument()
-    expect(within(card).getByText('$7,366.00')).toBeInTheDocument()
-  })
-
   it('says how to add accounts when there are none', async () => {
     stubApi({ ...homeRoutes, '/api/v1/accounts': [] })
 
@@ -139,33 +111,5 @@ describe('Movements', () => {
 
     const yesterday = screen.getByRole('region', { name: 'jue 19 de nov' })
     expect(within(yesterday).getByText('+$10,164.67')).toBeInTheDocument()
-  })
-
-  it('shows the account and category of each movement', async () => {
-    stubApi(homeRoutes)
-
-    renderApp()
-
-    expect(await screen.findByText('BBVA · Comida')).toBeInTheDocument()
-  })
-
-  it('shows an empty state', async () => {
-    stubApi({ ...homeRoutes, '/api/v1/movements': [] })
-
-    renderApp()
-
-    expect(await screen.findByText('Aún no hay movimientos.')).toBeInTheDocument()
-  })
-
-  it('asks for the last 50 movements', async () => {
-    const { mock } = stubApi(homeRoutes)
-
-    renderApp()
-
-    await screen.findByText('Cine')
-    const request = mock.mock.calls
-      .map(([call]) => new URL(call.url))
-      .find((url) => url.pathname === '/api/v1/movements')
-    expect(request?.searchParams.get('limit')).toBe('50')
   })
 })

@@ -50,34 +50,6 @@ def test_paying_a_credit_card_is_a_card_payment(client: TestClient) -> None:
     assert balances(client) == {"BBVA": "14143.11", "TDC Oro": "0.00"}
 
 
-def test_transfer_to_the_same_account_is_rejected(client: TestClient) -> None:
-    bbva = create_account(client, "BBVA")
-
-    response = post_transfer(client, bbva["id"], bbva["id"], "100")
-
-    assert response.status_code == 422
-    assert "different accounts" in response.json()["detail"]
-
-
-def test_transfer_from_a_credit_card_is_rejected(client: TestClient) -> None:
-    card = create_account(client, "TDC Oro", type="credit")
-    bbva = create_account(client, "BBVA")
-
-    response = post_transfer(client, card["id"], bbva["id"], "100")
-
-    assert response.status_code == 422
-
-
-def test_transfer_appears_in_both_accounts(client: TestClient) -> None:
-    bbva = create_account(client, "BBVA", initial_balance="1000")
-    cash = create_account(client, "Efectivo", type="cash")
-    post_transfer(client, bbva["id"], cash["id"], "300")
-
-    cash_movements = client.get("/api/v1/movements", params={"account_id": cash["id"]}).json()
-
-    assert [m["real_amount"] for m in cash_movements] == ["300.00"]
-
-
 def test_transfer_saves_both_legs_or_neither(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

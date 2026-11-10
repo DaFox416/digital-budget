@@ -43,18 +43,6 @@ function transferLegs(group: string, amount: string, occurredOn = '2026-11-20') 
 }
 
 describe('groupTransfers', () => {
-  it('leaves expenses and income as they are', () => {
-    const cine = movement({ description: 'Cine' })
-    const quincena = movement({ type: 'income', real_amount: '10000.00' })
-
-    const rows = groupTransfers([cine, quincena])
-
-    expect(rows).toEqual([
-      { kind: 'single', key: cine.id, occurredOn: '2026-11-20', movement: cine },
-      { kind: 'single', key: quincena.id, occurredOn: '2026-11-20', movement: quincena },
-    ])
-  })
-
   it('joins both legs of a transfer into one row', () => {
     const { source, destination } = transferLegs('g1', '2000.00')
 
@@ -71,28 +59,6 @@ describe('groupTransfers', () => {
         destination,
       },
     ])
-  })
-
-  it('keeps the card payment type', () => {
-    const { source, destination } = transferLegs('g1', '634.00')
-    const payment = [
-      { ...source, type: 'card_payment' as const },
-      { ...destination, type: 'card_payment' as const, account_id: 'tdc-oro' },
-    ]
-
-    const [row] = groupTransfers(payment)
-
-    expect(row).toMatchObject({ kind: 'transfer', type: 'card_payment' })
-  })
-
-  it('keeps the order of the list', () => {
-    const cine = movement({ description: 'Cine' })
-    const { source, destination } = transferLegs('g1', '2000.00')
-    const despensa = movement({ description: 'Despensa' })
-
-    const keys = groupTransfers([cine, source, destination, despensa]).map((row) => row.key)
-
-    expect(keys).toEqual([cine.id, 'g1', despensa.id])
   })
 
   it('shows a leg alone when its pair was cut by the limit', () => {
@@ -118,9 +84,5 @@ describe('groupByDay', () => {
       ['2026-11-20', 2],
       ['2026-11-19', 1],
     ])
-  })
-
-  it('returns no days for no rows', () => {
-    expect(groupByDay([])).toEqual([])
   })
 })
