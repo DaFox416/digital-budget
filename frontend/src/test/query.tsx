@@ -40,14 +40,16 @@ export type RouteReply = unknown
 /**
  * Stub fetch by path, for screens that make several calls at once. Each call gets a fresh
  * Response (a body can only be read once). Unknown paths answer 404.
- * Replace a route mid-test by mutating the returned `routes` object.
+ * A key with a method ("POST /api/v1/movements") wins over the bare path, which answers any
+ * method. Replace a route mid-test by mutating the returned `routes` object.
  */
 export function stubApi(initial: Record<string, RouteReply>) {
   const routes: Record<string, RouteReply> = { ...initial }
   const mock = vi.fn((request: Request) => {
     const path = new URL(request.url).pathname
-    if (!(path in routes)) return Promise.resolve(jsonResponse({ detail: 'Not Found' }, 404))
-    const reply = routes[path]
+    const key = [`${request.method} ${path}`, path].find((candidate) => candidate in routes)
+    if (key === undefined) return Promise.resolve(jsonResponse({ detail: 'Not Found' }, 404))
+    const reply = routes[key]
     return Promise.resolve(reply instanceof Response ? reply.clone() : jsonResponse(reply))
   })
   vi.stubGlobal('fetch', mock)

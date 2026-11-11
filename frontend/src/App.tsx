@@ -1,4 +1,8 @@
+import { useCallback, useState } from 'react'
+
 import { useHealth } from './api/queries'
+import { CapturePanel } from './capture/CapturePanel'
+import { useNewShortcut } from './capture/useNewShortcut'
 import { AccountList } from './features/accounts/AccountList'
 import { MovementList } from './features/movements/MovementList'
 import { SummaryFigures } from './features/summary/SummaryFigures'
@@ -30,12 +34,28 @@ function ApiStatusBadge() {
 }
 
 function App() {
+  const [capturing, setCapturing] = useState(false)
+  const openCapture = useCallback(() => {
+    setCapturing(true)
+  }, [])
+  useNewShortcut(openCapture, !capturing)
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-semibold text-slate-900">Digital Budget</h1>
-          <ApiStatusBadge />
+          <div className="flex items-center gap-4">
+            <ApiStatusBadge />
+            <button
+              type="button"
+              onClick={openCapture}
+              aria-keyshortcuts="N"
+              className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              Nuevo <kbd className="hidden text-xs opacity-75 sm:inline">N</kbd>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -53,6 +73,14 @@ function App() {
           </Section>
         </div>
       </main>
+
+      {capturing && (
+        <CapturePanel
+          onClose={() => {
+            setCapturing(false)
+          }}
+        />
+      )}
     </div>
   )
 }

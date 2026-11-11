@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatMoney, isMoney } from './money'
+import { formatMoney, isMoney, parseAmountInput } from './money'
 
 describe('formatMoney', () => {
   it.each([
@@ -32,5 +32,18 @@ describe('isMoney', () => {
 
   it('rejects more than 2 decimals', () => {
     expect(isMoney('0.001')).toBe(false)
+  })
+})
+
+describe('parseAmountInput', () => {
+  it('keeps typed amounts as strings, without thousands commas', () => {
+    expect(parseAmountInput(' 1,234.5 ')).toBe('1234.5')
+    expect(parseAmountInput('387.56')).toBe('387.56')
+  })
+
+  it('rejects zero, negatives, extra decimals and text', () => {
+    for (const text of ['', '0', '0.00', '-5', '12.345', '12.', 'abc', '1e3']) {
+      expect(parseAmountInput(text)).toBeNull()
+    }
   })
 })

@@ -26,3 +26,17 @@ export function formatMoney(amount: string): string {
   }
   return mxn.format(amount)
 }
+
+// What a person types: digits with optional thousands commas and up to 2 decimals
+const AMOUNT_INPUT = /^\d+(\.\d{1,2})?$/
+
+/**
+ * Turn a typed amount into the string the API takes ("1,234.5" -> "1234.5"), or null if it
+ * isn't a positive amount. It stays a string end to end: no parseFloat.
+ */
+export function parseAmountInput(text: string): string | null {
+  const value = text.trim().replaceAll(',', '')
+  if (!AMOUNT_INPUT.test(value)) return null
+  // Has a non-zero digit: "0", "0.00" and "000" are not amounts
+  return /[1-9]/.test(value) ? value : null
+}

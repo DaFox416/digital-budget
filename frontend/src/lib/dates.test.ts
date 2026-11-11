@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDay, formatShortDate } from './dates'
+import { formatDay, formatShortDate, todayInMexico } from './dates'
 
 describe('formatDay', () => {
   it("doesn't move the day back in Mexico's time zone", () => {
@@ -21,5 +21,12 @@ describe('formatShortDate', () => {
   it('formats due dates and cutoffs', () => {
     expect(formatShortDate('2026-12-05')).toBe('5 dic')
     expect(formatShortDate('2028-02-29')).toBe('29 feb')
+  })
+})
+
+describe('todayInMexico', () => {
+  it('uses the Mexico City day, not the UTC one', () => {
+    // 2 am UTC on Nov 21 is still 8 pm of Nov 20 in Mexico City
+    expect(todayInMexico(new Date('2026-11-21T02:00:00Z'))).toBe('2026-11-20')
   })
 })

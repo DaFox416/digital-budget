@@ -39,3 +39,24 @@ export function formatDay(iso: string): string {
 export function formatShortDate(iso: string): string {
   return shortFormat.format(toUtcDate(iso))
 }
+
+const mexicoDate = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: 'America/Mexico_City',
+})
+
+/**
+ * Today as "2026-11-20" in Mexico City, the same zone the backend uses for "today". Taken
+ * from the parts, since the separator of a locale's format isn't guaranteed.
+ */
+export function todayInMexico(now: Date = new Date()): string {
+  const parts = mexicoDate.formatToParts(now)
+  const part = (type: Intl.DateTimeFormatPartTypes): string => {
+    const found = parts.find((item) => item.type === type)
+    if (!found) throw new Error(`Date format has no ${type}`)
+    return found.value
+  }
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
