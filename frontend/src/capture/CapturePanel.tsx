@@ -1,9 +1,9 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent, type SubmitEvent } from 'react'
+import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 
 import { useCreateMovement, useCreateTransfer } from '../api/mutations'
 import { useAccounts, useCategories } from '../api/queries'
 import type { Account } from '../api/types'
-import { todayInMexico } from '../lib/dates'
+import { formatShortDate, todayInMexico } from '../lib/dates'
 import { parseAmountInput } from '../lib/money'
 import { ErrorState, LoadingState } from '../ui/Section'
 
@@ -58,6 +58,21 @@ function accountChoices(type: CaptureType, accounts: readonly Account[], sourceI
 /** The chosen id if it's still a valid choice, else the first one. */
 function pick(choices: readonly Account[], id: string | null): string {
   return choices.find((account) => account.id === id)?.id ?? choices.at(0)?.id ?? ''
+}
+
+const FIELD_KEYS = ['amount', 'source', 'destination', 'category', 'date', 'description'] as const
+type FieldKey = (typeof FIELD_KEYS)[number]
+
+interface CaptureField {
+  key: FieldKey
+  // How it reads in the Ctrl+Enter notice; null for the amount, which can't be left out
+  summary: string | null
+}
+
+/** The field an element is, from its `data-field`; null for tabs, buttons and the rest. */
+function fieldOf(element: HTMLElement): FieldKey | null {
+  const key = element.dataset.field
+  return FIELD_KEYS.find((item) => item === key) ?? null
 }
 
 const fieldClass =
@@ -133,7 +148,10 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  const amountRef = useRef<HTMLInputElement>(null)
+  // Ctrl+Enter with fields left to review: what they hold, and where Esc goes back to
+  const [unreviewed, setUnreviewed] = useState<{ items: string[]; returnTo: FieldKey } | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const tabRefs = useRef(new Map<CaptureType, HTMLButtonElement>())
 
   // Derived, not stored: switching tabs falls back to a valid account without extra state
   const { sources } = accountChoices(type, accounts, '')
@@ -143,14 +161,55 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const isTransfer = type === 'transfer' || type === 'card_payment'
   const saving = createMovement.isPending || createTransfer.isPending
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    // Enter in any field submits the form
-    event.preventDefault()
+  const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '—'
+  const categoryName = categories.data?.find((category) => category.id === categoryId)?.name
+  const sourceLabel = isTransfer ? 'Desde' : 'Cuenta'
+  const destinationLabel = type === 'card_payment' ? 'Tarjeta' : 'Hacia'
+
+  // This tab's fields in screen order: Enter walks this list, and Ctrl+Enter lists the ones
+  // after the current field (the ones not reviewed yet) with what they hold
+  const fields: CaptureField[] = [
+    { key: 'amount', summary: null },
+    { key: 'source', summary: `${sourceLabel}: ${accountName(sourceId)}` },
+    isTransfer
+      ? { key: 'destination', summary: `${destinationLabel}: ${accountName(destinationId)}` }
+      : { key: 'category', summary: categoryName ?? 'Sin categoría' },
+    {
+      key: 'date',
+      summary: `Fecha: ${!occurredOn || occurredOn === todayInMexico() ? 'hoy' : formatShortDate(occurredOn)}`,
+    },
+    { key: 'description', summary: description ? `"${description}"` : 'Sin descripción' },
+  ]
+
+  function focusField(key: FieldKey) {
+    formRef.current?.querySelector<HTMLElement>(`[data-field="${key}"]`)?.focus()
+  }
+
+  function chooseType(next: CaptureType) {
+    setType(next)
+    setError(null)
     setSaved(false)
+  }
+
+  function restart() {
+    // Every capture starts over from Gasto: the number of → presses always means the same type
+    setType('expense')
+    setAmountText('')
+    setChosenSource(readLastAccount())
+    setChosenDestination(null)
+    setCategoryId('')
+    setOccurredOn(todayInMexico())
+    setDescription('')
+    tabRefs.current.get('expense')?.focus()
+  }
+
+  async function save() {
+    setSaved(false)
+    setUnreviewed(null)
     const amount = parseAmountInput(amountText)
     if (amount === null) {
       setError('Escribe un monto mayor a 0, con hasta 2 decimales.')
-      amountRef.current?.focus()
+      focusField('amount')
       return
     }
     if (!sourceId || (isTransfer && !destinationId)) {
@@ -174,7 +233,6 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           account_id: sourceId,
           type,
           amount,
-          // An emptied date field: the API uses today
           occurred_on: occurredOn || null,
           description,
           category_id: categoryId || null,
@@ -186,28 +244,82 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     }
 
     saveLastAccount(sourceId)
-    // Ready for the next one: keep type, accounts, category and date
-    setAmountText('')
-    setDescription('')
     setSaved(true)
-    amountRef.current?.focus()
+    restart()
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    // The notice handles its own keys
+    if (unreviewed !== null || !(event.target instanceof HTMLElement)) return
+    const target = event.target
+    const tab = tabs.findIndex((item) => tabRefs.current.get(item.type) === target)
+
+    if (tab !== -1 && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+      event.preventDefault()
+      // No wrapping around: pressing → n times always lands on the same type
+      const index = Math.min(Math.max(tab + (event.key === 'ArrowRight' ? 1 : -1), 0), 3)
+      const next = tabs[index].type
+      chooseType(next)
+      tabRefs.current.get(next)?.focus()
+      return
+    }
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+
+    const current = fieldOf(target)
+    const position = fields.findIndex((field) => field.key === current)
+    // From the tabs every field is still ahead; from the Save button, none is
+    const ahead = tab !== -1 ? fields : position === -1 ? [] : fields.slice(position + 1)
+
+    if (event.ctrlKey || event.metaKey) {
+      const items = ahead.flatMap((field) => (field.summary === null ? [] : [field.summary]))
+      // Without an amount, save() shows the error instead of the notice
+      if (items.length > 0 && parseAmountInput(amountText) !== null) {
+        setUnreviewed({ items, returnTo: current ?? 'amount' })
+      } else {
+        void save()
+      }
+      return
+    }
+    const next = ahead.at(0)
+    if (next) focusField(next.key)
+    else void save()
+  }
+
+  function cancelNotice() {
+    const returnTo = unreviewed?.returnTo ?? 'amount'
+    setUnreviewed(null)
+    focusField(returnTo)
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4" noValidate>
+    <form
+      ref={formRef}
+      onSubmit={(event) => {
+        event.preventDefault()
+        void save()
+      }}
+      onKeyDown={handleKeyDown}
+      className="space-y-4"
+      noValidate
+    >
       <div role="tablist" aria-label="Tipo" className="grid grid-cols-2 gap-1 sm:grid-cols-4">
         {tabs.map((tab) => (
           <button
             key={tab.type}
+            ref={(element) => {
+              if (element) tabRefs.current.set(tab.type, element)
+            }}
             type="button"
             role="tab"
             aria-selected={type === tab.type}
+            // Roving focus: only the selected tab is in the Tab order; arrows move between them
+            tabIndex={type === tab.type ? 0 : -1}
+            autoFocus={tab.type === 'expense'}
             onClick={() => {
-              setType(tab.type)
-              setError(null)
-              setSaved(false)
+              chooseType(tab.type)
             }}
-            className={`rounded-lg px-2 py-2 text-sm font-medium ${
+            className={`rounded-lg px-2 py-2 text-sm font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none ${
               type === tab.type
                 ? 'bg-slate-900 text-white'
                 : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
@@ -217,17 +329,20 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           </button>
         ))}
       </div>
+      <p className="hidden text-xs text-slate-400 sm:block">
+        <kbd>←</kbd> <kbd>→</kbd> tipo · <kbd>Enter</kbd> siguiente campo · <kbd>Ctrl+Enter</kbd>{' '}
+        guardar
+      </p>
 
       <label className={labelClass}>
         Monto
         <input
-          ref={amountRef}
+          data-field="amount"
           // Text, not type="number": no float parsing, and "1,234.50" can be typed as is.
           // inputMode opens the phone's numeric keypad with a decimal point
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          autoFocus
           placeholder="0.00"
           value={amountText}
           onChange={(event) => {
@@ -239,8 +354,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       </label>
 
       <label className={labelClass}>
-        {isTransfer ? 'Desde' : 'Cuenta'}
+        {sourceLabel}
         <select
+          data-field="source"
           value={sourceId}
           onChange={(event) => {
             setChosenSource(event.target.value)
@@ -255,10 +371,11 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </select>
       </label>
 
-      {isTransfer && (
+      {isTransfer ? (
         <label className={labelClass}>
-          {type === 'card_payment' ? 'Tarjeta' : 'Hacia'}
+          {destinationLabel}
           <select
+            data-field="destination"
             value={destinationId}
             onChange={(event) => {
               setChosenDestination(event.target.value)
@@ -272,12 +389,11 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
             ))}
           </select>
         </label>
-      )}
-
-      {!isTransfer && (
+      ) : (
         <label className={labelClass}>
           Categoría
           <select
+            data-field="category"
             value={categoryId}
             onChange={(event) => {
               setCategoryId(event.target.value)
@@ -298,6 +414,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         <label className={labelClass}>
           Fecha
           <input
+            data-field="date"
             type="date"
             required
             value={occurredOn}
@@ -310,6 +427,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         <label className={labelClass}>
           Descripción
           <input
+            data-field="description"
             type="text"
             maxLength={200}
             value={description}
@@ -321,6 +439,13 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </label>
       </div>
 
+      {unreviewed && (
+        <UnreviewedNotice
+          items={unreviewed.items}
+          onSave={() => void save()}
+          onCancel={cancelNotice}
+        />
+      )}
       {error && (
         <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">
           {error}
@@ -337,8 +462,53 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         disabled={saving}
         className="w-full rounded-lg bg-sky-600 px-4 py-3 font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
       >
-        {saving ? 'Guardando…' : 'Guardar'} <kbd className="text-xs opacity-75">Enter</kbd>
+        {saving ? 'Guardando…' : 'Guardar'}{' '}
+        <kbd className="hidden text-xs opacity-75 sm:inline">Ctrl+Enter</kbd>
       </button>
     </form>
+  )
+}
+
+interface UnreviewedNoticeProps {
+  items: string[]
+  onSave: () => void
+  onCancel: () => void
+}
+
+/** Quick check before saving with Ctrl+Enter while some fields weren't reviewed. */
+function UnreviewedNotice({ items, onSave, onCancel }: UnreviewedNoticeProps) {
+  return (
+    <div
+      role="alertdialog"
+      aria-label="Guardar sin revisar todo"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          // Back to filling in, without closing the panel
+          event.stopPropagation()
+          onCancel()
+        }
+      }}
+      className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200"
+    >
+      <p>{items.join(' · ')}</p>
+      <div className="mt-2 flex gap-2">
+        {/* Focused on show: Enter "clicks" it, the browser's own behavior for buttons */}
+        <button
+          type="button"
+          autoFocus
+          onClick={onSave}
+          className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-700"
+        >
+          Guardar <kbd className="text-xs opacity-75">Enter</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-3 py-1.5 text-amber-900 ring-1 ring-amber-300 hover:bg-amber-100"
+        >
+          Seguir llenando <kbd className="text-xs opacity-75">Esc</kbd>
+        </button>
+      </div>
+    </div>
   )
 }

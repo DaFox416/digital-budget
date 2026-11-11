@@ -7,14 +7,16 @@ import { todayInMexico } from '../lib/dates'
 import { homeRoutes, movements } from '../test/fixtures'
 import { jsonResponse, queryWrapper, stubApi } from '../test/query'
 
+const CTRL_ENTER = '{Control>}{Enter}{/Control}'
+
 function renderApp() {
   render(<App />, { wrapper: queryWrapper() })
 }
 
+/** Open with N and wait for the form, which shows once the accounts load. */
 async function openPanel() {
-  await userEvent.click(screen.getByRole('button', { name: /Nuevo/ }))
+  await userEvent.keyboard('n')
   const panel = screen.getByRole('dialog', { name: 'Nuevo movimiento' })
-  // The form shows once the accounts load
   await within(panel).findByLabelText('Monto')
   return panel
 }
@@ -38,48 +40,104 @@ beforeEach(() => {
 })
 
 describe('Capture panel', () => {
-  it('opens with N, with the amount focused and empty, and closes with Esc', async () => {
+  it('opens with N on Gasto, with the focus on the tabs, and closes with Esc', async () => {
     stubApi(homeRoutes)
     renderApp()
 
-    await userEvent.keyboard('n')
+    const panel = await openPanel()
 
-    const panel = screen.getByRole('dialog', { name: 'Nuevo movimiento' })
-    const amount = await within(panel).findByLabelText('Monto')
-    expect(amount).toHaveFocus()
-    expect(amount).toHaveValue('')
+    const expense = within(panel).getByRole('tab', { name: 'Gasto' })
+    expect(expense).toHaveAttribute('aria-selected', 'true')
+    expect(expense).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('saves an expense with Enter and stays ready for the next one', async () => {
+  it('picks the type with the arrows, without wrapping around, and Enter goes to the amount', async () => {
+    stubApi(homeRoutes)
+    renderApp()
+    const panel = await openPanel()
+
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(within(panel).getByRole('tab', { name: 'Gasto' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    expect(within(panel).getByRole('tab', { name: 'Transferencia' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}')
+    expect(within(panel).getByRole('tab', { name: 'Pago de tarjeta' })).toHaveFocus()
+
+    await userEvent.keyboard('{Enter}')
+    expect(within(panel).getByLabelText('Monto')).toHaveFocus()
+  })
+
+  it('walks the fields with Enter, saves on the last one and starts over on Gasto', async () => {
     const { mock } = stubApi({ ...homeRoutes, 'POST /api/v1/movements': movements[0] })
     renderApp()
     const panel = await openPanel()
 
-    await userEvent.type(within(panel).getByLabelText('Monto'), '1,234.5')
-    await userEvent.selectOptions(within(panel).getByLabelText('Cuenta'), 'TDC Oro')
+    await userEvent.keyboard('{Enter}387.56{Enter}')
+    const account = within(panel).getByLabelText('Cuenta')
+    expect(account).toHaveFocus()
+    await userEvent.selectOptions(account, 'TDC Oro')
+    await userEvent.keyboard('{Enter}')
     await userEvent.selectOptions(within(panel).getByLabelText('Categoría'), 'Comida')
-    await userEvent.type(within(panel).getByLabelText('Descripción'), 'Cine{Enter}')
+    await userEvent.keyboard('{Enter}{Enter}')
+    expect(within(panel).getByLabelText('Descripción')).toHaveFocus()
+    await userEvent.keyboard('Cine{Enter}')
 
     expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
     expect(await posted(mock, '/api/v1/movements')).toEqual([
       {
         account_id: 'tdc-oro',
         type: 'expense',
-        amount: '1234.5',
+        amount: '387.56',
         occurred_on: todayInMexico(),
         description: 'Cine',
         category_id: 'comida',
       },
     ])
-    // Amount and description clear; account and category stay, and the account is remembered
+    // Starts over: Gasto with the focus on the tabs, empty fields, the last account remembered
+    expect(within(panel).getByRole('tab', { name: 'Gasto' })).toHaveFocus()
     expect(within(panel).getByLabelText('Monto')).toHaveValue('')
-    expect(within(panel).getByLabelText('Monto')).toHaveFocus()
-    expect(within(panel).getByLabelText('Descripción')).toHaveValue('')
+    expect(within(panel).getByLabelText('Categoría')).toHaveValue('')
     expect(within(panel).getByLabelText('Cuenta')).toHaveValue('tdc-oro')
-    expect(localStorage.getItem('capture.lastAccountId')).toBe('tdc-oro')
+  })
+
+  it('asks before saving with Ctrl+Enter while fields are left to review', async () => {
+    const { mock } = stubApi({ ...homeRoutes, 'POST /api/v1/movements': movements[0] })
+    renderApp()
+    const panel = await openPanel()
+
+    await userEvent.keyboard(`{Enter}90${CTRL_ENTER}`)
+    const notice = within(panel).getByRole('alertdialog')
+    expect(notice).toHaveTextContent('Cuenta: BBVA · Sin categoría · Fecha: hoy · Sin descripción')
+
+    // Esc goes back to the field, without closing the panel or saving
+    await userEvent.keyboard('{Escape}')
+    expect(within(panel).queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(panel).getByLabelText('Monto')).toHaveFocus()
+    expect(await posted(mock, '/api/v1/movements')).toEqual([])
+
+    await userEvent.keyboard(`${CTRL_ENTER}{Enter}`)
+    expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
+    expect(await posted(mock, '/api/v1/movements')).toHaveLength(1)
+  })
+
+  it('saves right away with Ctrl+Enter on the last field', async () => {
+    const { mock } = stubApi({ ...homeRoutes, 'POST /api/v1/movements': movements[0] })
+    renderApp()
+    const panel = await openPanel()
+
+    await userEvent.keyboard('{Enter}90')
+    await userEvent.click(within(panel).getByLabelText('Descripción'))
+    await userEvent.keyboard(`Tacos${CTRL_ENTER}`)
+
+    expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
+    expect(within(panel).queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(await posted(mock, '/api/v1/movements')).toHaveLength(1)
   })
 
   it('pays a card from a debit account, offering only cards as destination', async () => {
@@ -87,10 +145,14 @@ describe('Capture panel', () => {
     renderApp()
     const panel = await openPanel()
 
-    await userEvent.click(within(panel).getByRole('tab', { name: 'Pago de tarjeta' }))
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}')
     expect(optionNames(within(panel).getByLabelText('Desde'))).toEqual(['BBVA'])
     expect(optionNames(within(panel).getByLabelText('Tarjeta'))).toEqual(['TDC Oro'])
-    await userEvent.type(within(panel).getByLabelText('Monto'), '634{Enter}')
+    await userEvent.click(within(panel).getByRole('button', { name: /Guardar/ }))
+    expect(within(panel).getByRole('alert')).toHaveTextContent('Escribe un monto')
+
+    await userEvent.type(within(panel).getByLabelText('Monto'), '634')
+    await userEvent.click(within(panel).getByRole('button', { name: /Guardar/ }))
 
     expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
     expect(await posted(mock, '/api/v1/transfers')).toEqual([
@@ -104,14 +166,17 @@ describe('Capture panel', () => {
     ])
   })
 
-  it("doesn't send an invalid amount", async () => {
+  it("doesn't send an invalid amount, and Ctrl+Enter goes back to it", async () => {
     const { mock } = stubApi(homeRoutes)
     renderApp()
     const panel = await openPanel()
 
-    await userEvent.type(within(panel).getByLabelText('Monto'), '12.345{Enter}')
+    await userEvent.keyboard('{Enter}12.345{Enter}')
+    await userEvent.keyboard(CTRL_ENTER)
 
     expect(within(panel).getByRole('alert')).toHaveTextContent('hasta 2 decimales')
+    expect(within(panel).queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(panel).getByLabelText('Monto')).toHaveFocus()
     expect(await posted(mock, '/api/v1/movements')).toEqual([])
   })
 
@@ -123,7 +188,8 @@ describe('Capture panel', () => {
     renderApp()
     const panel = await openPanel()
 
-    await userEvent.type(within(panel).getByLabelText('Monto'), '90{Enter}')
+    await userEvent.keyboard('{Enter}90')
+    await userEvent.click(within(panel).getByRole('button', { name: /Guardar/ }))
 
     expect(await within(panel).findByRole('alert')).toHaveTextContent('Category not found')
     expect(within(panel).getByLabelText('Monto')).toHaveValue('90')
