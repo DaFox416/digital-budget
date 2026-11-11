@@ -60,6 +60,9 @@
 | 2026-11-10 | Deshacer una liberación de sobrante: `DELETE /leftover-releases/{id}` (borrado lógico, 204), siempre permitido porque solo hace crecer el sobrante. Sin endpoint para listarlas: el `id` llega en la respuesta del `POST`; el historial va con la cuenta Sobrante en la v1. |
 | 2026-11-10 | `PATCH /movements/{id}` acepta `commitment_id` en gastos: otro apartado pendiente mueve el pago (404 si no existe, 409 si ya está pagado) y `null` lo desliga. Sin contable explícito, el contable pasa a ser el mayor entre el real y el monto del nuevo apartado o, al desligarlo, el real. |
 | 2026-11-10 | El día 11 empieza con pruebas completas (suites de backend y frontend, `alembic check`, pre-commit en todo el repo y `docker compose up --build` desde cero) y una segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`), antes de la captura. Si la captura no alcanza, termina el jueves 12 y la pantalla de tarjeta detallada se hace más ligera. |
+| 2026-11-11 | Se invierte el orden del día 11: primero la captura convencional y después la segunda ronda de pruebas manuales, para hacer desde la interfaz los pasos con movimientos (lo demás, en Swagger). |
+| 2026-11-11 | La advertencia de nivel 2 (el real supera el saldo real) aplica siempre, en modo simple y en modo ahorro, con el botón "Guardar de todos modos". La de nivel 1 (el contable supera el disponible) solo en modo ahorro. |
+| 2026-11-11 | Contable de las mensualidades MSI en modo ahorro: cada mensualidad se redondea hacia arriba al múltiplo del usuario y la diferencia va al sobrante; la compra por el total sigue con contable 0 y baja el crédito disponible por el total exacto. Ejemplo: $1,000 a 3 MSI = 333.33, 333.33 y 333.34, con contable de 340 cada una ($20 al sobrante en total). "MSI por cargar" se sigue midiendo con el monto real de las mensualidades. |
 
 ## Resumen
 
@@ -197,7 +200,7 @@ Cada movimiento guarda dos montos: el real, que es lo que se movió en el banco 
 2. Al capturar, la app propone el monto contable redondeando al múltiplo que elijas (10 por defecto); lo puedes cambiar a mano.
 3. Un apartado tiene nombre, monto y fecha esperada, y puede repetirse (luz cada dos meses). Pagarlo consume el apartado, no el disponible; la diferencia va al sobrante.
 4. Una compra con tarjeta de crédito funciona igual que con débito para el disponible: baja por el monto contable. El monto real baja el crédito disponible de la tarjeta y sube su deuda; las cuentas de débito no cambian hasta que pagas.
-5. Las compras a MSI no bajan el disponible por el total: cada mensualidad lo baja por su monto contable al inicio de su ciclo (la primera, el día de la compra) y la diferencia del redondeo va al sobrante. El total sí sube la deuda y baja el crédito disponible de la tarjeta desde el día de la compra. Mientras tanto, lo pendiente se ve en "MSI por cargar".
+5. Las compras a MSI no bajan el disponible por el total: cada mensualidad lo baja por su monto contable al inicio de su ciclo (la primera, el día de la compra) y la diferencia del redondeo va al sobrante. El contable de cada mensualidad es su monto redondeado hacia arriba al múltiplo ($1,000 a 3 MSI: 333.33, 333.33 y 333.34, con contable de 340 cada una). El total sí sube la deuda y baja el crédito disponible de la tarjeta desde el día de la compra. Mientras tanto, lo pendiente se ve en "MSI por cargar".
 6. Pagar la tarjeta es una transferencia de débito a crédito: bajan el saldo real y la deuda por igual; el disponible y el sobrante no cambian.
 7. La cuenta de ahorro "Sobrante" se crea de forma predeterminada y no se puede borrar. Ahí se acumula la diferencia entre montos reales y contables, y no cuenta en el disponible. (2026-11-10: en el demo es una cifra de `/summary`; la cuenta como fila llega en la v1. Se puede liberar al disponible en múltiplos del redondeo.)
 8. El modo se activa por usuario. Los datos guardan ambos montos desde el día 1, así que cambiar de modo no pierde información.
@@ -212,6 +215,8 @@ El modo ahorro existe para no gastar dinero que no tienes. Por eso, al capturar 
 | 2 · Alerta | El monto real supera el saldo real de todas tus cuentas de débito y efectivo | Mensaje en rojo, más visible, y confirmar con un clic extra antes de guardar |
 
 Si se cumplen ambas, solo se muestra el nivel 2. Aplica a cualquier compra con tarjeta, cerca o lejos de la quincena, incluidas las MSI.
+
+**Por modo (2026-11-11):** el nivel 2 aplica siempre, también en modo simple, y el botón cambia a "Guardar de todos modos". El nivel 1 solo en modo ahorro, porque en modo simple no se muestra el disponible.
 
 **En MSI (2026-11-10):** nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real.
 
