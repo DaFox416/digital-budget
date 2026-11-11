@@ -417,6 +417,14 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] Campo de monto contable con redondeo propuesto en modo ahorro (2026-11-11, con `POST /movements/preview` y el selector de apartado)
 - [x] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta (2026-11-11, incluidas las compras a MSI desde el panel)
 
+**Estado al cerrar la sesión del 2026-11-11:** la captura del día 11 está completa (commits `b9ea558`, `d32e447` y `d7993bc`; 137 pruebas de backend y 46 de frontend en verde). La BD de desarrollo se restauró del respaldo del 9 nov y se respaldó de nuevo antes de las pruebas (`backups/budget-2026-11-11-antes.dump`, 16:10). Falta la segunda ronda de pruebas manuales: el usuario la hace en la noche del 11 con la sección 9 de `docs/PRUEBAS-MANUALES.md` y anota los resultados en `docs/pruebas-manuales.local.md`.
+
+Para retomar en una sesión nueva:
+
+1. Pedir al usuario las diferencias y fricciones de la segunda ronda (sin datos de su cuenta), corregir lo que haga falta antes del demo y marcar la casilla de las pruebas manuales (y la del día 10, "Probar con tus números reales").
+2. Confirmar que se sacó `backups/budget-2026-11-11.dump` al terminar las pruebas.
+3. Seguir con el jueves 12. Quedan fuera del día 11 y se evalúan con el día 12: editar y borrar desde la lista de movimientos, pantalla de apartados y liberar sobrante desde la interfaz (por ahora en Swagger).
+
 **Jue 12 · Pantallas de saldos y tarjetas**
 
 - [ ] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle)

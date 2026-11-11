@@ -121,7 +121,14 @@ Anota lo que fue tedioso, lento o confuso. Sirve para diseñar el formulario del
 
 Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose down -v`.**
 
-1. Respalda primero: `backups/budget-2026-11-11-antes.dump`.
+**Antes de empezar (también si es una sesión nueva):**
+
+- Abre Docker Desktop, espera a que esté corriendo y levanta todo: `docker compose up -d`.
+- Revisa que el volumen de Postgres no se haya recreado: `docker volume inspect digital-budget_pgdata --format '{{.CreatedAt}}'` debe seguir diciendo `2026-11-10T18:17…`. Si cambió, se perdieron datos: restaura `backups/budget-2026-11-11-antes.dump` (ver "Respaldo de la BD" en `CLAUDE.md`).
+- Compara `GET /api/v1/summary` con el punto de partida anotado en `docs/pruebas-manuales.local.md` y resuelve la lista "Revisar antes de empezar" de ese archivo. Anota ahí los resultados de cada paso.
+- Para encontrar el `id` de un movimiento: `GET /api/v1/movements` (ordenados por fecha, la más reciente primero).
+
+1. Respalda primero: `backups/budget-2026-11-11-antes.dump` (hecho el 2026-11-11 a las 16:10; repítelo si capturas o borras algo antes de empezar).
 2. Repite rápido la sección 5 con lo capturado desde el día 9 (estado de cuenta, deuda y saldo real) para confirmar que nada cambió con las migraciones del día 10.
 3. Sigue los pasos de esta tabla. Los movimientos se capturan en el panel (`N`); lo demás, en Swagger. Después de cada paso, revisa `GET /api/v1/summary`: las siete cifras deben cuadrar con
    `real_balance = available + set_aside + card_debt + savings_goals + leftover − installments_pending`.
@@ -148,4 +155,7 @@ Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose d
    - Movimientos de prueba (cine, despensa con tarjeta, luz): `DELETE /api/v1/movements/{id}`. Si se quedan, tu saldo real y la deuda de la tarjeta ya no coinciden con el banco. Otra opción es usar en la tabla tus gastos reales de la semana en lugar de los números del ejemplo, y conservarlos.
    - Borra los pagos antes que sus apartados (un apartado pagado responde 409) y luego `DELETE /api/v1/commitments/{id}`.
    - Liberaciones que no quieras conservar: `DELETE /api/v1/leftover-releases/{id}`.
+   - La compra a MSI de prueba: `DELETE` de su movimiento (el gasto por el total, con contable 0); sus mensualidades salen con él.
    - Revisa que `real_balance` y `card_debt` vuelvan a lo que tenías en el paso 2.
+   - Decide si te quedas en modo ahorro. Para volver: `PATCH /api/v1/preferences` con `{ "mode": "simple" }`.
+6. Para la siguiente sesión con Claude, comparte qué pasos cuadraron, las diferencias (paso y monto) y las fricciones del panel, sin datos de tu cuenta.
