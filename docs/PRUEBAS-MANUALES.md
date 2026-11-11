@@ -128,7 +128,7 @@ Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose d
 - Compara `GET /api/v1/summary` con el punto de partida anotado en `docs/pruebas-manuales.local.md` y resuelve la lista "Revisar antes de empezar" de ese archivo. Anota ahí los resultados de cada paso.
 - Para encontrar el `id` de un movimiento: `GET /api/v1/movements` (ordenados por fecha, la más reciente primero).
 
-1. Respalda primero: `backups/budget-2026-11-11-antes.dump` (hecho el 2026-11-11 a las 16:18; repítelo si capturas o borras algo antes de empezar).
+1. Respalda primero: `backups/budget-2026-11-11-antes.dump` (hecho el 2026-11-11 a las 16:19; repítelo si capturas o borras algo antes de empezar).
 2. Repite rápido la sección 5 con lo capturado desde el día 9 (estado de cuenta, deuda y saldo real) para confirmar que nada cambió con las migraciones del día 10.
 3. Sigue los pasos de esta tabla. Los movimientos se capturan en el panel (`N`); lo demás, en Swagger. Después de cada paso, revisa `GET /api/v1/summary`: las siete cifras deben cuadrar con
    `real_balance = available + set_aside + card_debt + savings_goals + leftover − installments_pending`.
