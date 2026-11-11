@@ -3,13 +3,15 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.domain.enums import MovementType
+from app.domain.enums import MovementType, SavingsMode
 from app.domain.installments import installment_schedule, validate_installment_account
 from app.domain.money import to_money
+from app.domain.savings import installment_accounting
 from app.models import Installment, InstallmentPlan, Movement
 from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
 from app.schemas.installments import InstallmentPlanCreate
+from app.services import savings as savings_service
 from app.services.accounts import cycle_config
 from app.services.clock import today
 from app.services.errors import NotFoundError
@@ -36,6 +38,10 @@ def create_plan(
     schedule = installment_schedule(
         total, data.months, purchased_on, cycle_config(account.credit_config)
     )
+    # Savings mode rounds each installment up to the multiple (the difference goes to the
+    # leftover); simple mode keeps accounting equal to real. The mode at purchase time counts
+    preferences = savings_service.get_preferences(session, user_id)
+    rounding = preferences.rounding_multiple if preferences.mode is SavingsMode.SAVINGS else None
 
     movement = Movement(
         id=uuid.uuid4(),
@@ -63,8 +69,11 @@ def create_plan(
                 user_id=user_id,
                 number=item.number,
                 amount=item.amount,
-                # Equal to the amount until savings mode rounding arrives (day 10)
-                accounting_amount=item.amount,
+                accounting_amount=(
+                    item.amount
+                    if rounding is None
+                    else installment_accounting(item.amount, rounding)
+                ),
                 cutoff_date=item.cutoff,
                 charged_on=item.charged_on,
             )

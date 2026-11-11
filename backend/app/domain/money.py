@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, InvalidOperation
 
 from app.domain.errors import InvalidAmountError
 
@@ -29,3 +29,15 @@ def to_money(value: Decimal | int | str) -> Decimal:
         raise InvalidAmountError(f"Amount is too large: {value!r}")
 
     return amount.quantize(CENT)
+
+
+def ceil_to_multiple(amount: Decimal, multiple: int) -> Decimal:
+    """Round up to a whole multiple: 387.56 with 10 is 390.00; 390 stays 390.00."""
+    step = Decimal(multiple)
+    return to_money((amount / step).to_integral_value(ROUND_CEILING) * step)
+
+
+def floor_to_multiple(amount: Decimal, multiple: int) -> Decimal:
+    """Round down to a whole multiple: 10,164.67 with 10 is 10,160.00."""
+    step = Decimal(multiple)
+    return to_money((amount / step).to_integral_value(ROUND_FLOOR) * step)

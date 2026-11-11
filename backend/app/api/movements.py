@@ -5,9 +5,13 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.api.deps import CurrentUserId, SessionDep
 from app.schemas.movements import (
+    InstallmentPreviewRead,
     MovementCreate,
+    MovementPreviewRead,
+    MovementPreviewRequest,
     MovementRead,
     MovementUpdate,
+    PurchaseWarningRead,
     TransferCreate,
     TransferRead,
 )
@@ -35,6 +39,32 @@ def create_movement(
     """Record an expense or an income. Use POST /transfers to move money between accounts."""
     movement = movements_service.create_movement(session, user_id, data)
     return MovementRead.model_validate(movement)
+
+
+@router.post("/movements/preview")
+def preview_movement(
+    data: MovementPreviewRequest, session: SessionDep, user_id: CurrentUserId
+) -> MovementPreviewRead:
+    """Accounting amount to propose and the purchase warning, while capturing. Stores nothing.
+
+    Warnings only apply to credit card expenses: level 2 (`over_real_balance`) in every mode,
+    level 1 (`over_available`) only in savings mode. With `months`, it's an MSI purchase:
+    level 1 compares its first installment and level 2 its total.
+    """
+    preview = movements_service.preview_movement(session, user_id, data)
+    first = preview.first_installment
+    warning = preview.warning
+    return MovementPreviewRead(
+        suggested_accounting_amount=preview.suggested_accounting_amount,
+        first_installment=(
+            InstallmentPreviewRead(amount=first.amount, accounting_amount=first.accounting_amount)
+            if first
+            else None
+        ),
+        warning=(
+            PurchaseWarningRead(level=warning.level, excess=warning.excess) if warning else None
+        ),
+    )
 
 
 @router.patch("/movements/{movement_id}")

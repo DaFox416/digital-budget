@@ -2,9 +2,10 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from app.domain.enums import MovementType
+from app.domain.enums import MovementType, WarningLevel
+from app.domain.installments import MAX_MONTHS, MIN_MONTHS
 from app.schemas.common import Money, NonNegativeMoney, PositiveMoney
 
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
@@ -82,3 +83,37 @@ class TransferRead(BaseModel):
     type: MovementType
     source: MovementRead
     destination: MovementRead
+
+
+class MovementPreviewRequest(BaseModel):
+    """What's being captured, before saving it. Nothing is stored."""
+
+    account_id: uuid.UUID
+    type: Literal[MovementType.EXPENSE, MovementType.INCOME]
+    amount: PositiveMoney
+    # Typed by hand: the warning uses it instead of the suggestion
+    accounting_amount: NonNegativeMoney | None = None
+    commitment_id: uuid.UUID | None = None
+    # A purchase in installments (MSI): `amount` is the total
+    months: int | None = Field(default=None, ge=MIN_MONTHS, le=MAX_MONTHS)
+
+
+class PurchaseWarningRead(BaseModel):
+    level: WarningLevel
+    # How much it goes over "available" (level 1) or the real balance (level 2)
+    excess: Money
+
+
+class InstallmentPreviewRead(BaseModel):
+    amount: Money
+    accounting_amount: Money
+
+
+class MovementPreviewRead(BaseModel):
+    # What to prefill as the accounting amount: rounded in savings mode, the amount in simple
+    # mode, or the one typed by hand. Null in MSI, whose purchase has accounting 0
+    suggested_accounting_amount: Money | None
+    # MSI only: the first installment, the one charged to "available" today
+    first_installment: InstallmentPreviewRead | None
+    # Credit card expenses only
+    warning: PurchaseWarningRead | None

@@ -3,18 +3,25 @@ from decimal import Decimal
 
 import pytest
 
-from app.domain.enums import AccountType, WarningLevel
+from app.domain.enums import AccountType, MovementType, WarningLevel
 from app.domain.errors import InvalidAmountError
 from app.domain.savings import (
     AccountTotals,
     SavingsFigures,
     SavingsInputs,
     commitment_payment_accounting,
+    cost_to_available,
+    installment_accounting,
     releasable_leftover,
     savings_figures,
+    suggest_accounting,
     validate_leftover_release,
 )
-from app.domain.warnings import installment_purchase_warning, purchase_warning
+from app.domain.warnings import (
+    PurchaseWarning,
+    installment_purchase_warning,
+    purchase_warning,
+)
 
 
 def d(value: str) -> Decimal:
@@ -139,21 +146,46 @@ def test_commitment_payment_accounting_is_the_larger_amount() -> None:
 class TestWarnings:
     # Real balance 4,612.44 and available 3,460 (after the despensa in the plan's example)
     def test_no_warning_within_available(self) -> None:
-        assert purchase_warning(d("400"), d("387.56"), d("3460"), d("4612.44")) is None
+        assert purchase_warning(d("400"), d("387.56"), d("3460"), d("4612.44"), True) is None
 
-    def test_level_1_over_available(self) -> None:
-        level = purchase_warning(d("4000"), d("3990"), d("3460"), d("4612.44"))
+    def test_level_1_over_available_only_in_savings_mode(self) -> None:
+        warning = purchase_warning(d("4000"), d("3990"), d("3460"), d("4612.44"), True)
 
-        assert level is WarningLevel.OVER_AVAILABLE
+        assert warning == PurchaseWarning(WarningLevel.OVER_AVAILABLE, d("540.00"))
+        assert purchase_warning(d("4000"), d("3990"), d("3460"), d("4612.44"), False) is None
 
-    def test_level_2_wins_over_level_1(self) -> None:
-        level = purchase_warning(d("5000"), d("5000"), d("3460"), d("4612.44"))
-
-        assert level is WarningLevel.OVER_REAL_BALANCE
+    def test_level_2_wins_over_level_1_in_every_mode(self) -> None:
+        expected = PurchaseWarning(WarningLevel.OVER_REAL_BALANCE, d("387.56"))
+        for savings_mode in (True, False):
+            warning = purchase_warning(d("5000"), d("5000"), d("3460"), d("4612.44"), savings_mode)
+            assert warning == expected
 
     def test_msi_compares_first_installment_and_total(self) -> None:
         # 12,000 at 12: the first 1,000 fits in available, but the total is over the real balance
-        level = installment_purchase_warning(d("1000"), d("12000"), d("3460"), d("4612.44"))
-        assert level is WarningLevel.OVER_REAL_BALANCE
+        warning = installment_purchase_warning(d("1000"), d("12000"), d("3460"), d("4612.44"), True)
+        assert warning is not None and warning.level is WarningLevel.OVER_REAL_BALANCE
         # 3,600 at 3: 1,200 fits, the total fits in the real balance
-        assert installment_purchase_warning(d("1200"), d("3600"), d("3460"), d("4612.44")) is None
+        assert (
+            installment_purchase_warning(d("1200"), d("3600"), d("3460"), d("4612.44"), True)
+            is None
+        )
+
+
+class TestRounding:
+    def test_suggestion_rounds_expenses_up_and_income_down(self) -> None:
+        assert suggest_accounting(MovementType.EXPENSE, d("387.56"), 10) == d("390.00")
+        assert suggest_accounting(MovementType.INCOME, d("10164.67"), 10) == d("10160.00")
+        # Already a multiple: no difference for the leftover
+        assert suggest_accounting(MovementType.EXPENSE, d("390"), 10) == d("390.00")
+
+    def test_installments_round_up_each_one(self) -> None:
+        # 1,000 at 3 MSI: 333.33, 333.33 and 333.34, each one takes 340 from "available"
+        assert [installment_accounting(d(a), 10) for a in ("333.33", "333.34")] == [
+            d("340.00"),
+            d("340.00"),
+        ]
+
+    def test_paying_a_commitment_only_costs_what_goes_over_it(self) -> None:
+        assert cost_to_available(d("520"), d("500")) == d("20.00")
+        assert cost_to_available(d("500"), d("500")) == d("0.00")
+        assert cost_to_available(d("400"), None) == d("400.00")

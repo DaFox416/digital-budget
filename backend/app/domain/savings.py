@@ -8,11 +8,11 @@ can't leave them out of sync.
 """
 
 from dataclasses import dataclass
-from decimal import ROUND_FLOOR, Decimal
+from decimal import Decimal
 
-from app.domain.enums import AccountType
+from app.domain.enums import AccountType, MovementType
 from app.domain.errors import InvalidAmountError, InvalidPreferencesError
-from app.domain.money import to_money
+from app.domain.money import ceil_to_multiple, floor_to_multiple, to_money
 from app.domain.summary import REAL_BALANCE_ACCOUNT_TYPES, summary_totals
 
 DEFAULT_ROUNDING_MULTIPLE = 10
@@ -113,8 +113,7 @@ def releasable_leftover(leftover: Decimal, multiple: int) -> Decimal:
     """The most leftover that can go back to "available": whole multiples of the rounding."""
     if leftover <= 0:
         return Decimal("0.00")
-    step = Decimal(multiple)
-    return to_money((leftover / step).to_integral_value(ROUND_FLOOR) * step)
+    return floor_to_multiple(leftover, multiple)
 
 
 def validate_leftover_release(
@@ -138,3 +137,33 @@ def commitment_payment_accounting(real: Decimal, commitment_amount: Decimal) -> 
     extra comes out of "available".
     """
     return to_money(max(real, commitment_amount))
+
+
+def suggest_accounting(movement_type: MovementType, amount: Decimal, multiple: int) -> Decimal:
+    """Accounting amount proposed while capturing, in savings mode (positive magnitudes).
+
+    Expenses round up and income rounds down, so accounting never goes below real in an expense
+    or above it in an income (savings mode rule 1): the difference goes to the leftover.
+    """
+    if movement_type is MovementType.EXPENSE:
+        return ceil_to_multiple(amount, multiple)
+    if movement_type is MovementType.INCOME:
+        return floor_to_multiple(amount, multiple)
+    raise InvalidAmountError(f"A {movement_type} has no accounting amount to suggest")
+
+
+def installment_accounting(amount: Decimal, multiple: int) -> Decimal:
+    """Accounting amount of an MSI installment in savings mode: rounded up to the multiple.
+
+    1,000 at 3 months is 333.33, 333.33 and 333.34; with 10, each one takes 340 from
+    "available" and 20 ends up in the leftover.
+    """
+    return ceil_to_multiple(amount, multiple)
+
+
+def cost_to_available(accounting: Decimal, commitment_amount: Decimal | None) -> Decimal:
+    """What an expense takes from "available" (positive): its accounting amount, minus the
+    commitment it pays, which was already set aside. Paying 520 for a 500 commitment costs 20."""
+    if commitment_amount is None:
+        return to_money(accounting)
+    return to_money(max(accounting - commitment_amount, Decimal("0")))

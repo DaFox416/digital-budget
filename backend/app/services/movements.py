@@ -6,8 +6,10 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.domain.enums import MovementType
+from app.domain.enums import AccountType, MovementType, SavingsMode
 from app.domain.errors import InvalidMovementError
+from app.domain.installments import split_installments, validate_installment_account
+from app.domain.money import to_money
 from app.domain.movements import (
     AccountRef,
     SignedAmounts,
@@ -16,13 +18,25 @@ from app.domain.movements import (
     plan_transfer,
     signed_amounts,
 )
-from app.domain.savings import commitment_payment_accounting
+from app.domain.savings import (
+    commitment_payment_accounting,
+    cost_to_available,
+    installment_accounting,
+    suggest_accounting,
+)
+from app.domain.warnings import PurchaseWarning, installment_purchase_warning, purchase_warning
 from app.models import Account, Commitment, Movement
 from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
 from app.repositories import movements as movements_repo
 from app.repositories import savings as savings_repo
-from app.schemas.movements import MovementCreate, MovementUpdate, TransferCreate
+from app.schemas.movements import (
+    MovementCreate,
+    MovementPreviewRequest,
+    MovementUpdate,
+    TransferCreate,
+)
+from app.services import savings as savings_service
 from app.services.clock import today
 from app.services.errors import ConflictError, NotFoundError
 
@@ -40,6 +54,19 @@ def _get_account(session: Session, user_id: uuid.UUID, account_id: uuid.UUID) ->
     if account is None:
         raise NotFoundError(f"Account {account_id} not found")
     return account
+
+
+@dataclass(frozen=True)
+class InstallmentPreview:
+    amount: Decimal
+    accounting_amount: Decimal
+
+
+@dataclass(frozen=True)
+class MovementPreview:
+    suggested_accounting_amount: Decimal | None
+    first_installment: InstallmentPreview | None
+    warning: PurchaseWarning | None
 
 
 def list_movements(
@@ -288,3 +315,54 @@ def _commit(session: Session) -> None:
     except Exception:
         session.rollback()
         raise
+
+
+def preview_movement(
+    session: Session, user_id: uuid.UUID, data: MovementPreviewRequest
+) -> MovementPreview:
+    """Accounting amount to propose and the warning to show while capturing; stores nothing."""
+    account = _get_account(session, user_id, data.account_id)
+    preferences = savings_service.get_preferences(session, user_id)
+    savings_mode = preferences.mode is SavingsMode.SAVINGS
+    multiple = preferences.rounding_multiple
+
+    if data.months is not None:
+        if data.type is not MovementType.EXPENSE or data.commitment_id is not None:
+            raise InvalidMovementError("Only expenses without a commitment can be in installments")
+        validate_installment_account(account.type)
+        first = split_installments(data.amount, data.months)[0]
+        first_accounting = installment_accounting(first, multiple) if savings_mode else first
+        figures = savings_service.current_figures(session, user_id, today()).figures
+        warning = installment_purchase_warning(
+            first_accounting, data.amount, figures.available, figures.real_balance, savings_mode
+        )
+        return MovementPreview(None, InstallmentPreview(first, first_accounting), warning)
+
+    commitment = None
+    if data.commitment_id is not None:
+        commitment = _commitment_to_pay(session, user_id, data.type, data.commitment_id)
+
+    if data.accounting_amount is not None:
+        accounting = data.accounting_amount
+    elif commitment is not None:
+        # Same default as when saving: the payment consumes the whole commitment
+        accounting = commitment_payment_accounting(data.amount, commitment.amount)
+    elif savings_mode:
+        accounting = suggest_accounting(data.type, data.amount, multiple)
+    else:
+        accounting = data.amount
+    # Same checks as saving it (account type, amounts), and always with 2 decimals
+    accounting = to_money(accounting)
+    signed_amounts(data.type, account.type, data.amount, accounting)
+
+    warning = None
+    if account.type is AccountType.CREDIT and data.type is MovementType.EXPENSE:
+        figures = savings_service.current_figures(session, user_id, today()).figures
+        warning = purchase_warning(
+            cost_to_available(accounting, commitment.amount if commitment else None),
+            data.amount,
+            figures.available,
+            figures.real_balance,
+            savings_mode,
+        )
+    return MovementPreview(accounting, None, warning)
