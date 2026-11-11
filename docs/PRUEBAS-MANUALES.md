@@ -141,4 +141,8 @@ Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose d
 | MSI en modo ahorro | Si tienes una compra a MSI vigente, revisa `installments_pending` | Igual a las mensualidades con fecha de cargo posterior a hoy |
 
 4. Compara `available` contra lo que tú calculas a mano (tu Excel). Si no coincide, anota el paso donde se separó y la diferencia, sin datos de tu cuenta.
-5. Borra o deshaz los apartados y liberaciones de prueba que no quieras conservar, y respalda: `backups/budget-2026-11-11.dump`.
+5. Limpia lo que no sea real, y respalda: `backups/budget-2026-11-11.dump`.
+   - Movimientos de prueba (cine, despensa con tarjeta, luz): `DELETE /api/v1/movements/{id}`. Si se quedan, tu saldo real y la deuda de la tarjeta ya no coinciden con el banco. Otra opción es usar en la tabla tus gastos reales de la semana en lugar de los números del ejemplo, y conservarlos.
+   - Borra los pagos antes que sus apartados (un apartado pagado responde 409) y luego `DELETE /api/v1/commitments/{id}`.
+   - Liberaciones que no quieras conservar: `DELETE /api/v1/leftover-releases/{id}`.
+   - Revisa que `real_balance` y `card_debt` vuelvan a lo que tenías en el paso 2.

@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-11
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -403,7 +403,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 **Mié 11 · Pruebas completas y captura convencional**
 
-- [ ] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero
+- [x] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero (2026-11-11: 130 pruebas de backend y 28 de frontend en verde; la BD de desarrollo estaba vacía porque el volumen se recreó el 10 nov y se restauró el respaldo del 9)
 - [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después); incluye la prueba con tus números reales del día 10
 - [ ] Panel de nuevo movimiento con valores por defecto y `Enter` para guardar
 - [ ] Campo de monto contable con redondeo propuesto en modo ahorro

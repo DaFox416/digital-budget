@@ -50,8 +50,11 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - Restaurar (reemplaza los datos actuales):
   `docker compose stop backend`
   `docker compose cp backups/budget-AAAA-MM-DD.dump db:/tmp/budget.dump`
-  `docker compose exec db pg_restore -U budget -d budget --clean --if-exists /tmp/budget.dump`
+  `docker compose exec db psql -U budget -d postgres -c "DROP DATABASE budget WITH (FORCE)" -c "CREATE DATABASE budget OWNER budget"`
+  `docker compose exec db pg_restore -U budget -d budget /tmp/budget.dump`
   `docker compose start backend` (aplica las migraciones que falten si el respaldo es viejo)
+- Se recrea la BD en lugar de usar `pg_restore --clean`: con un respaldo viejo, `--clean` deja las tablas de migraciones posteriores y regresa `alembic_version`, y la migración falla al arrancar.
+- Para saber si el volumen se recreó (datos perdidos): `docker volume inspect digital-budget_pgdata --format '{{.CreatedAt}}'`.
 - El archivo se genera dentro del contenedor y se copia con `docker compose cp`: el formato `custom` es binario y la redirección `>` de PowerShell lo puede corromper.
 - En Git Bash, anteponer `MSYS_NO_PATHCONV=1` (o `export` una vez): MSYS convierte `/tmp/...` en una ruta de Windows. En PowerShell no hace falta.
 - Solo se respalda `budget`; `budget_test` se recrea sola.
