@@ -118,4 +118,11 @@ export const homeRoutes = {
   '/api/v1/accounts': [bbva, tdcOro],
   '/api/v1/categories': categories,
   '/api/v1/movements': movements,
+  '/api/v1/preferences': { mode: 'simple', rounding_multiple: 10 },
+  '/api/v1/commitments': [],
+  'POST /api/v1/movements/preview': {
+    suggested_accounting_amount: null,
+    first_installment: null,
+    warning: null,
+  },
 }

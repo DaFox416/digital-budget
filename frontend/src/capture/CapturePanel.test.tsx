@@ -82,6 +82,9 @@ describe('Capture panel', () => {
     const account = within(panel).getByLabelText('Cuenta')
     expect(account).toHaveFocus()
     await userEvent.selectOptions(account, 'TDC Oro')
+    // A card expense can be in installments: that field comes next, empty means no MSI
+    await userEvent.keyboard('{Enter}')
+    expect(within(panel).getByLabelText('Meses sin intereses')).toHaveFocus()
     await userEvent.keyboard('{Enter}')
     await userEvent.selectOptions(within(panel).getByLabelText('Categoría'), 'Comida')
     await userEvent.keyboard('{Enter}{Enter}')
@@ -97,6 +100,9 @@ describe('Capture panel', () => {
         occurred_on: todayInMexico(),
         description: 'Cine',
         category_id: 'comida',
+        // Simple mode: the API takes the amount as accounting
+        accounting_amount: null,
+        commitment_id: null,
       },
     ])
     // Starts over: Gasto with the focus on the tabs, empty fields, the last account remembered

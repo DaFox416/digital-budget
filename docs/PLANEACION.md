@@ -414,8 +414,8 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero (2026-11-11: 130 pruebas de backend y 28 de frontend en verde; la BD de desarrollo estaba vacía porque el volumen se recreó el 10 nov y se restauró el respaldo del 9)
 - [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después); incluye la prueba con tus números reales del día 10
 - [x] Panel de nuevo movimiento con valores por defecto y `Enter` para guardar (2026-11-11: gasto, ingreso, transferencia y pago de tarjeta; tecla `N`, `Esc` y última cuenta usada)
-- [ ] Campo de monto contable con redondeo propuesto en modo ahorro
-- [ ] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta
+- [x] Campo de monto contable con redondeo propuesto en modo ahorro (2026-11-11, con `POST /movements/preview` y el selector de apartado)
+- [x] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta (2026-11-11, incluidas las compras a MSI desde el panel)
 
 **Jue 12 · Pantallas de saldos y tarjetas**
 

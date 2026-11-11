@@ -1,3 +1,4 @@
+import { isPendingId } from '../../api/mutations'
 import { useAccounts, useCategories, useMovements } from '../../api/queries'
 import type { Movement } from '../../api/types'
 import { formatDay } from '../../lib/dates'
@@ -39,9 +40,19 @@ export function MovementList() {
           <h3 className="mb-1 text-xs font-medium text-slate-400">{formatDay(day.day)}</h3>
           <ul className="divide-y divide-slate-100 rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
             {day.rows.map((row) => (
-              <li key={row.key} className="flex items-center justify-between gap-3 px-4 py-3">
+              <li
+                key={row.key}
+                // Shown before the API confirms it (optimistic update)
+                aria-busy={isPendingId(row.key)}
+                className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                  isPendingId(row.key) ? 'opacity-60' : ''
+                }`}
+              >
                 <RowText row={row} accountNames={accountNames} categoryNames={categoryNames} />
-                <RowAmount row={row} />
+                <div className="shrink-0 text-right">
+                  <RowAmount row={row} />
+                  {isPendingId(row.key) && <p className="text-xs text-slate-400">Guardando…</p>}
+                </div>
               </li>
             ))}
           </ul>

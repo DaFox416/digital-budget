@@ -1,10 +1,24 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 
-import { useCreateMovement, useCreateTransfer } from '../api/mutations'
-import { useAccounts, useCategories } from '../api/queries'
-import type { Account } from '../api/types'
+import { useCreateInstallmentPlan, useCreateMovement, useCreateTransfer } from '../api/mutations'
+import {
+  previewQuery,
+  useAccounts,
+  useCategories,
+  useCommitments,
+  usePreferences,
+  usePreview,
+} from '../api/queries'
+import type {
+  Account,
+  MovementPreview,
+  MovementPreviewRequest,
+  PurchaseWarning,
+} from '../api/types'
 import { formatShortDate, todayInMexico } from '../lib/dates'
-import { parseAmountInput } from '../lib/money'
+import { formatMoney, isMoney, parseAmountInput } from '../lib/money'
+import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { ErrorState, LoadingState } from '../ui/Section'
 
 export type CaptureType = 'expense' | 'income' | 'transfer' | 'card_payment'
@@ -19,6 +33,14 @@ const tabs: { type: CaptureType; label: string }[] = [
 // Savings accounts are filled from "available", not with expenses, income or transfers
 const SPENDING = new Set<Account['type']>(['debit', 'cash', 'credit'])
 const MONEY_SOURCES = new Set<Account['type']>(['debit', 'cash'])
+
+// MSI terms shown first (docs/PLANEACION.md); any term from 3 to 48 can be typed
+const COMMON_MONTHS = [3, 6, 9, 12]
+const MIN_MONTHS = 3
+const MAX_MONTHS = 48
+
+// Wait for the typing to pause before asking the API for the preview
+const PREVIEW_DELAY_MS = 300
 
 const LAST_ACCOUNT_KEY = 'capture.lastAccountId'
 
@@ -60,7 +82,30 @@ function pick(choices: readonly Account[], id: string | null): string {
   return choices.find((account) => account.id === id)?.id ?? choices.at(0)?.id ?? ''
 }
 
-const FIELD_KEYS = ['amount', 'source', 'destination', 'category', 'date', 'description'] as const
+/** "12" -> 12; null for an empty field. NaN for anything outside 3 to 48. */
+function parseMonths(text: string): number | null {
+  const value = text.trim()
+  if (value === '') return null
+  return /^\d+$/.test(value) && Number(value) >= MIN_MONTHS && Number(value) <= MAX_MONTHS
+    ? Number(value)
+    : Number.NaN
+}
+
+function money(amount: string): string {
+  return isMoney(amount) ? formatMoney(amount) : amount
+}
+
+const FIELD_KEYS = [
+  'amount',
+  'accounting',
+  'source',
+  'months',
+  'destination',
+  'category',
+  'commitment',
+  'date',
+  'description',
+] as const
 type FieldKey = (typeof FIELD_KEYS)[number]
 
 interface CaptureField {
@@ -135,22 +180,33 @@ export function CapturePanel({ onClose }: CapturePanelProps) {
 }
 
 function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
+  const queryClient = useQueryClient()
   const categories = useCategories()
+  const preferences = usePreferences()
+  const commitments = useCommitments()
   const createMovement = useCreateMovement()
   const createTransfer = useCreateTransfer()
+  const createPlan = useCreateInstallmentPlan()
 
   const [type, setType] = useState<CaptureType>('expense')
   const [amountText, setAmountText] = useState('')
+  // Follows the suggestion until it's typed by hand
+  const [accountingText, setAccountingText] = useState<string | null>(null)
   const [chosenSource, setChosenSource] = useState<string | null>(readLastAccount)
   const [chosenDestination, setChosenDestination] = useState<string | null>(null)
+  const [monthsText, setMonthsText] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [commitmentId, setCommitmentId] = useState('')
   const [occurredOn, setOccurredOn] = useState(todayInMexico)
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   // Ctrl+Enter with fields left to review: what they hold, and where Esc goes back to
   const [unreviewed, setUnreviewed] = useState<{ items: string[]; returnTo: FieldKey } | null>(null)
+  // Level 2 warning: the preview it was shown for; saving that same one again goes ahead
+  const [overRealShownFor, setOverRealShownFor] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
   const tabRefs = useRef(new Map<CaptureType, HTMLButtonElement>())
 
   // Derived, not stored: switching tabs falls back to a valid account without extra state
@@ -158,11 +214,50 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const sourceId = pick(sources, chosenSource)
   const { destinations } = accountChoices(type, accounts, sourceId)
   const destinationId = pick(destinations, chosenDestination)
+  const source = accounts.find((account) => account.id === sourceId)
+
+  // Without preferences (still loading or failed), behave as simple mode
+  const savingsMode = preferences.data?.mode === 'savings'
   const isTransfer = type === 'transfer' || type === 'card_payment'
-  const saving = createMovement.isPending || createTransfer.isPending
+  const cardExpense = type === 'expense' && source?.type === 'credit'
+  const months = cardExpense ? parseMonths(monthsText) : null
+  const isInstallments = months !== null && !Number.isNaN(months)
+  const pendingCommitments = (commitments.data ?? []).filter((c) => c.paid_by_movement_id === null)
+  const showAccounting = savingsMode && !isTransfer && !isInstallments
+  const showCommitment =
+    savingsMode && type === 'expense' && !isInstallments && pendingCommitments.length > 0
+  const saving = createMovement.isPending || createTransfer.isPending || createPlan.isPending
+
+  const amount = parseAmountInput(amountText)
+  const typedAccounting =
+    showAccounting && accountingText !== null ? parseAmountInput(accountingText) : null
+  const sentCommitment = showCommitment && commitmentId ? commitmentId : null
+
+  // Savings mode needs the suggestion; card expenses, the warnings. Transfers need neither
+  const previewBody: MovementPreviewRequest | null =
+    amount !== null && !isTransfer && sourceId && (savingsMode || cardExpense)
+      ? {
+          account_id: sourceId,
+          type: type === 'income' ? 'income' : 'expense',
+          amount,
+          accounting_amount: typedAccounting,
+          commitment_id: sentCommitment,
+          months: isInstallments ? months : null,
+        }
+      : null
+  const previewKey = previewBody && JSON.stringify(previewBody)
+  const debouncedKey = useDebouncedValue(previewKey, PREVIEW_DELAY_MS)
+  const preview = usePreview(
+    debouncedKey === previewKey && previewBody !== null ? previewBody : null,
+  )
+  // Only what belongs to the current values: a reply for an older amount isn't shown
+  const current = debouncedKey === previewKey ? preview.data : undefined
+  const suggestion = current?.suggested_accounting_amount ?? null
+  const accountingValue = accountingText ?? suggestion ?? ''
 
   const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '—'
   const categoryName = categories.data?.find((category) => category.id === categoryId)?.name
+  const commitmentName = pendingCommitments.find((c) => c.id === commitmentId)?.name
   const sourceLabel = isTransfer ? 'Desde' : 'Cuenta'
   const destinationLabel = type === 'card_payment' ? 'Tarjeta' : 'Hacia'
 
@@ -170,10 +265,29 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   // after the current field (the ones not reviewed yet) with what they hold
   const fields: CaptureField[] = [
     { key: 'amount', summary: null },
+    ...(showAccounting
+      ? [
+          {
+            key: 'accounting' as const,
+            summary: `Contable: ${accountingValue ? money(accountingValue) : 'igual al monto'}`,
+          },
+        ]
+      : []),
     { key: 'source', summary: `${sourceLabel}: ${accountName(sourceId)}` },
+    ...(cardExpense
+      ? [{ key: 'months' as const, summary: isInstallments ? `${String(months)} MSI` : 'Sin MSI' }]
+      : []),
     isTransfer
       ? { key: 'destination', summary: `${destinationLabel}: ${accountName(destinationId)}` }
       : { key: 'category', summary: categoryName ?? 'Sin categoría' },
+    ...(showCommitment
+      ? [
+          {
+            key: 'commitment' as const,
+            summary: commitmentName ? `Paga: ${commitmentName}` : 'Sin apartado',
+          },
+        ]
+      : []),
     {
       key: 'date',
       summary: `Fecha: ${!occurredOn || occurredOn === todayInMexico() ? 'hoy' : formatShortDate(occurredOn)}`,
@@ -195,47 +309,100 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     // Every capture starts over from Gasto: the number of → presses always means the same type
     setType('expense')
     setAmountText('')
+    setAccountingText(null)
     setChosenSource(readLastAccount())
     setChosenDestination(null)
+    setMonthsText('')
     setCategoryId('')
+    setCommitmentId('')
     setOccurredOn(todayInMexico())
     setDescription('')
+    setOverRealShownFor(null)
     tabRefs.current.get('expense')?.focus()
+  }
+
+  /** The preview for exactly what's being saved; the cached one if it's already there. */
+  async function previewNow(body: MovementPreviewRequest): Promise<MovementPreview | null> {
+    try {
+      return await queryClient.query(previewQuery(body))
+    } catch {
+      // Warnings and suggestions only advise: the API still validates what's saved
+      return null
+    }
   }
 
   async function save() {
     setSaved(false)
     setUnreviewed(null)
-    const amount = parseAmountInput(amountText)
     if (amount === null) {
       setError('Escribe un monto mayor a 0, con hasta 2 decimales.')
       focusField('amount')
       return
+    }
+    if (months !== null && Number.isNaN(months)) {
+      setError(`Los meses sin intereses van de ${String(MIN_MONTHS)} a ${String(MAX_MONTHS)}.`)
+      focusField('months')
+      return
+    }
+    if (showAccounting && accountingText !== null && accountingText.trim() !== '') {
+      if (typedAccounting === null) {
+        setError('El contable debe ser un monto mayor a 0, con hasta 2 decimales.')
+        focusField('accounting')
+        return
+      }
     }
     if (!sourceId || (isTransfer && !destinationId)) {
       setError('Elige las cuentas.')
       return
     }
 
+    const checked = previewBody && (await previewNow(previewBody))
+    if (checked?.warning?.level === 'over_real_balance' && overRealShownFor !== previewKey) {
+      // Level 2 asks once more: the next Enter, Ctrl+Enter or click saves it
+      setOverRealShownFor(previewKey)
+      setError(null)
+      submitRef.current?.focus()
+      return
+    }
+
     setError(null)
+    const date = occurredOn || null
     try {
       if (isTransfer) {
         await createTransfer.mutateAsync({
-          source_account_id: sourceId,
-          destination_account_id: destinationId,
-          amount,
-          // An emptied date field: the API uses today
-          occurred_on: occurredOn || null,
+          type,
+          body: {
+            source_account_id: sourceId,
+            destination_account_id: destinationId,
+            amount,
+            // An emptied date field: the API uses today
+            occurred_on: date,
+            description,
+          },
+        })
+      } else if (isInstallments) {
+        await createPlan.mutateAsync({
+          account_id: sourceId,
+          total: amount,
+          months,
+          purchased_on: date,
           description,
+          category_id: categoryId || null,
         })
       } else {
         await createMovement.mutateAsync({
           account_id: sourceId,
           type,
           amount,
-          occurred_on: occurredOn || null,
+          // Savings mode: what was typed, else the suggestion. Left out, the API uses the
+          // amount (or, paying a commitment, the larger of both)
+          accounting_amount: showAccounting
+            ? (typedAccounting ?? checked?.suggested_accounting_amount ?? null)
+            : null,
+          occurred_on: date,
           description,
           category_id: categoryId || null,
+          commitment_id: sentCommitment,
         })
       }
     } catch (caught) {
@@ -266,16 +433,16 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     if (event.key !== 'Enter') return
     event.preventDefault()
 
-    const current = fieldOf(target)
-    const position = fields.findIndex((field) => field.key === current)
+    const currentField = fieldOf(target)
+    const position = fields.findIndex((field) => field.key === currentField)
     // From the tabs every field is still ahead; from the Save button, none is
     const ahead = tab !== -1 ? fields : position === -1 ? [] : fields.slice(position + 1)
 
     if (event.ctrlKey || event.metaKey) {
       const items = ahead.flatMap((field) => (field.summary === null ? [] : [field.summary]))
       // Without an amount, save() shows the error instead of the notice
-      if (items.length > 0 && parseAmountInput(amountText) !== null) {
-        setUnreviewed({ items, returnTo: current ?? 'amount' })
+      if (items.length > 0 && amount !== null) {
+        setUnreviewed({ items, returnTo: currentField ?? 'amount' })
       } else {
         void save()
       }
@@ -291,6 +458,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     setUnreviewed(null)
     focusField(returnTo)
   }
+
+  const warning = current?.warning ?? null
+  const confirmingOverReal = overRealShownFor !== null && overRealShownFor === previewKey
 
   return (
     <form
@@ -335,7 +505,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       </p>
 
       <label className={labelClass}>
-        Monto
+        {isInstallments ? 'Monto total' : 'Monto'}
         <input
           data-field="amount"
           // Text, not type="number": no float parsing, and "1,234.50" can be typed as is.
@@ -352,6 +522,29 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           className={`${fieldClass} text-lg tabular-nums`}
         />
       </label>
+
+      {showAccounting && (
+        <label className={labelClass}>
+          Contable
+          <input
+            data-field="accounting"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder={amount ?? '0.00'}
+            value={accountingValue}
+            onChange={(event) => {
+              setAccountingText(event.target.value)
+            }}
+            className={`${fieldClass} tabular-nums`}
+          />
+          <span className="mt-1 block text-xs font-normal text-slate-400">
+            {accountingText === null
+              ? 'Redondeo sugerido; lo que pase del monto va al sobrante.'
+              : 'Escrito a mano.'}
+          </span>
+        </label>
+      )}
 
       <label className={labelClass}>
         {sourceLabel}
@@ -370,6 +563,54 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           ))}
         </select>
       </label>
+
+      {cardExpense && (
+        <div>
+          <label className={labelClass}>
+            Meses sin intereses
+            <input
+              data-field="months"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="Sin MSI"
+              value={monthsText}
+              onChange={(event) => {
+                setMonthsText(event.target.value)
+              }}
+              className={`${fieldClass} tabular-nums`}
+            />
+          </label>
+          <div className="mt-2 flex gap-2">
+            {COMMON_MONTHS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                // For mouse and touch; the keyboard types the number
+                tabIndex={-1}
+                onClick={() => {
+                  setMonthsText(monthsText === String(value) ? '' : String(value))
+                }}
+                className={`rounded-full px-3 py-1 text-sm ${
+                  monthsText === String(value)
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+          {isInstallments && current?.first_installment && (
+            <p className="mt-2 text-xs text-slate-500">
+              {months} mensualidades; la primera de {money(current.first_installment.amount)}
+              {savingsMode &&
+                ` (contable ${money(current.first_installment.accounting_amount)} al mes)`}
+              .
+            </p>
+          )}
+        </div>
+      )}
 
       {isTransfer ? (
         <label className={labelClass}>
@@ -410,6 +651,27 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </label>
       )}
 
+      {showCommitment && (
+        <label className={labelClass}>
+          Paga un apartado
+          <select
+            data-field="commitment"
+            value={commitmentId}
+            onChange={(event) => {
+              setCommitmentId(event.target.value)
+            }}
+            className={fieldClass}
+          >
+            <option value="">Ninguno</option>
+            {pendingCommitments.map((commitment) => (
+              <option key={commitment.id} value={commitment.id}>
+                {commitment.name} · {money(commitment.amount)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <label className={labelClass}>
           Fecha
@@ -439,6 +701,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </label>
       </div>
 
+      {warning && <WarningMessage warning={warning} confirming={confirmingOverReal} />}
       {unreviewed && (
         <UnreviewedNotice
           items={unreviewed.items}
@@ -458,14 +721,53 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       )}
 
       <button
+        ref={submitRef}
         type="submit"
         disabled={saving}
-        className="w-full rounded-lg bg-sky-600 px-4 py-3 font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+        className={`w-full rounded-lg px-4 py-3 font-semibold text-white disabled:opacity-60 ${
+          confirmingOverReal ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700'
+        }`}
       >
-        {saving ? 'Guardando…' : 'Guardar'}{' '}
-        <kbd className="hidden text-xs opacity-75 sm:inline">Ctrl+Enter</kbd>
+        {saving ? 'Guardando…' : confirmingOverReal ? 'Guardar de todos modos' : 'Guardar'}{' '}
+        <kbd className="hidden text-xs opacity-75 sm:inline">
+          {confirmingOverReal ? 'Enter' : 'Ctrl+Enter'}
+        </kbd>
       </button>
     </form>
+  )
+}
+
+/** Level 1 in yellow (over "available"), level 2 in red (over the real balance). */
+function WarningMessage({
+  warning,
+  confirming,
+}: {
+  warning: PurchaseWarning
+  confirming: boolean
+}) {
+  if (warning.level === 'over_available') {
+    return (
+      <p
+        data-warning="1"
+        className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200"
+      >
+        Esta compra supera tu disponible por {money(warning.excess)}.
+      </p>
+    )
+  }
+  return (
+    <div
+      data-warning="2"
+      role="alert"
+      className="rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-900 ring-2 ring-rose-400"
+    >
+      <p>Esta compra supera tu saldo real por {money(warning.excess)}.</p>
+      {confirming && (
+        <p className="mt-1 font-normal">
+          Si de todos modos quieres guardarla, presiona Enter o el botón rojo.
+        </p>
+      )}
+    </div>
   )
 }
 

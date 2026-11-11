@@ -34,7 +34,10 @@ export function requestOf(mock: ReturnType<typeof stubFetch>, call = 0): Request
   return request
 }
 
-/** A route's reply: a JSON body (200), or a full Response for errors. */
+/**
+ * A route's reply: a JSON body (200), a full Response for errors, or a function that gets
+ * the Request and returns a Response promise (to hold the reply back, or inspect the body).
+ */
 export type RouteReply = unknown
 
 /**
@@ -50,6 +53,7 @@ export function stubApi(initial: Record<string, RouteReply>) {
     const key = [`${request.method} ${path}`, path].find((candidate) => candidate in routes)
     if (key === undefined) return Promise.resolve(jsonResponse({ detail: 'Not Found' }, 404))
     const reply = routes[key]
+    if (typeof reply === 'function') return (reply as (r: Request) => Promise<Response>)(request)
     return Promise.resolve(reply instanceof Response ? reply.clone() : jsonResponse(reply))
   })
   vi.stubGlobal('fetch', mock)
