@@ -65,6 +65,7 @@
 | 2026-11-11 | Contable de las mensualidades MSI en modo ahorro: cada mensualidad se redondea hacia arriba al múltiplo del usuario y la diferencia va al sobrante; la compra por el total sigue con contable 0 y baja el crédito disponible por el total exacto. Ejemplo: $1,000 a 3 MSI = 333.33, 333.33 y 333.34, con contable de 340 cada una ($20 al sobrante en total). "MSI por cargar" se sigue midiendo con el monto real de las mensualidades. |
 | 2026-11-11 | Contable propuesto al capturar en modo ahorro: los gastos se redondean hacia arriba al múltiplo y los ingresos hacia abajo (387.56 → 390; 10,164.67 → 10,160); el usuario lo puede cambiar. Lo calcula `POST /movements/preview`, que también da la advertencia y no guarda nada, para que el frontend no haga cuentas con dinero. Si el gasto paga un apartado, se propone el mayor entre el real y el apartado, y el nivel 1 compara solo lo que pasa del apartado. |
 | 2026-11-11 | En modo simple, el contable de las mensualidades MSI es igual a su monto. Cuenta el modo al crear la compra; las compras existentes no se recalculan. |
+| 2026-11-11 | Flujo de teclado del panel de captura (se adelanta del diseño de la fase 2): `N` abre en Gasto con el foco en las pestañas; `←` `→` cambian el tipo sin dar la vuelta (0 veces = gasto, 1 = ingreso, 2 = transferencia, 3 = pago de tarjeta); `Enter` en las pestañas va al monto y en cada campo pasa al siguiente; `Enter` en el último campo guarda directo. `Ctrl+Enter` guarda en cualquier momento: si quedan campos después del actual (vacíos o con su valor por defecto), muestra un aviso ágil dentro del panel con esos valores (`Enter` guarda, `Esc` regresa al campo). Sin monto, marca el error. El botón Guardar guarda directo. Al guardar, el flujo se reinicia en Gasto con el foco en las pestañas, para que el número de `→` siempre signifique el mismo tipo. Las advertencias de nivel 1 y 2 van aparte: el nivel 2 sigue pidiendo "Guardar de todos modos". |
 
 ## Resumen
 
@@ -247,7 +248,7 @@ La captura llega en dos fases: primero una convencional que funcione bien en web
 **Fase 1 (demo y v1) · captura convencional**
 
 - Un botón "Nuevo" (o la tecla `N`) abre un panel con tipo (pestañas), monto, cuenta y categoría. Fecha de hoy y última cuenta usada por defecto.
-- `Enter` guarda y deja el panel listo para el siguiente movimiento; `Esc` cierra.
+- Teclado (2026-11-11): el panel abre en Gasto con el foco en las pestañas; `←` `→` eligen el tipo (sin dar la vuelta) y `Enter` va al monto. `Enter` pasa al siguiente campo y, en el último, guarda. `Ctrl+Enter` guarda en cualquier momento; si faltan campos por revisar, un aviso muestra sus valores (`Enter` guarda, `Esc` regresa). Al guardar, el flujo vuelve a empezar en Gasto. `Esc` cierra el panel.
 - En móvil el panel ocupa la pantalla y el campo de monto abre el teclado numérico del sistema.
 - En modo ahorro aparece un segundo campo, monto contable, ya precargado con el redondeo propuesto.
 - En compras con tarjeta se muestran las advertencias de nivel 1 o 2 antes de guardar.
