@@ -417,7 +417,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 - [x] Campo de monto contable con redondeo propuesto en modo ahorro (2026-11-11, con `POST /movements/preview` y el selector de apartado)
 - [x] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta (2026-11-11, incluidas las compras a MSI desde el panel)
 
-**Estado al cerrar la sesión del 2026-11-11:** la captura del día 11 está completa (commits `b9ea558`, `d32e447` y `d7993bc`; 137 pruebas de backend y 46 de frontend en verde). La BD de desarrollo se restauró del respaldo del 9 nov y se respaldó de nuevo antes de las pruebas (`backups/budget-2026-11-11-antes.dump`, 16:10). Falta la segunda ronda de pruebas manuales: el usuario la hace en la noche del 11 con la sección 9 de `docs/PRUEBAS-MANUALES.md` y anota los resultados en `docs/pruebas-manuales.local.md`.
+**Estado al cerrar la sesión del 2026-11-11:** la captura del día 11 está completa (commits `b9ea558`, `d32e447` y `d7993bc`; 137 pruebas de backend y 46 de frontend en verde). La BD de desarrollo se restauró del respaldo del 9 nov y se respaldó de nuevo antes de las pruebas (`backups/budget-2026-11-11-antes.dump`, 16:18). Falta la segunda ronda de pruebas manuales: el usuario la hace en la noche del 11 con la sección 9 de `docs/PRUEBAS-MANUALES.md` y anota los resultados en `docs/pruebas-manuales.local.md`.
 
 Para retomar en una sesión nueva:
 
