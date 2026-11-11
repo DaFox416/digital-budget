@@ -63,6 +63,8 @@
 | 2026-11-11 | Se invierte el orden del día 11: primero la captura convencional y después la segunda ronda de pruebas manuales, para hacer desde la interfaz los pasos con movimientos (lo demás, en Swagger). |
 | 2026-11-11 | La advertencia de nivel 2 (el real supera el saldo real) aplica siempre, en modo simple y en modo ahorro, con el botón "Guardar de todos modos". La de nivel 1 (el contable supera el disponible) solo en modo ahorro. |
 | 2026-11-11 | Contable de las mensualidades MSI en modo ahorro: cada mensualidad se redondea hacia arriba al múltiplo del usuario y la diferencia va al sobrante; la compra por el total sigue con contable 0 y baja el crédito disponible por el total exacto. Ejemplo: $1,000 a 3 MSI = 333.33, 333.33 y 333.34, con contable de 340 cada una ($20 al sobrante en total). "MSI por cargar" se sigue midiendo con el monto real de las mensualidades. |
+| 2026-11-11 | Contable propuesto al capturar en modo ahorro: los gastos se redondean hacia arriba al múltiplo y los ingresos hacia abajo (387.56 → 390; 10,164.67 → 10,160); el usuario lo puede cambiar. Lo calcula `POST /movements/preview`, que también da la advertencia y no guarda nada, para que el frontend no haga cuentas con dinero. Si el gasto paga un apartado, se propone el mayor entre el real y el apartado, y el nivel 1 compara solo lo que pasa del apartado. |
+| 2026-11-11 | En modo simple, el contable de las mensualidades MSI es igual a su monto. Cuenta el modo al crear la compra; las compras existentes no se recalculan. |
 
 ## Resumen
 
