@@ -103,6 +103,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/movements/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Movement
+         * @description Accounting amount to propose and the purchase warning, while capturing. Stores nothing.
+         *
+         *     Warnings only apply to credit card expenses: level 2 (`over_real_balance`) in every mode,
+         *     level 1 (`over_available`) only in savings mode. With `months`, it's an MSI purchase:
+         *     level 1 compares its first installment and level 2 its total.
+         */
+        post: operations["preview_movement_api_v1_movements_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/movements/{movement_id}": {
         parameters: {
             query?: never;
@@ -620,6 +644,13 @@ export interface components {
             /** Installments */
             installments: components["schemas"]["InstallmentRead"][];
         };
+        /** InstallmentPreviewRead */
+        InstallmentPreviewRead: {
+            /** Amount */
+            amount: string;
+            /** Accounting Amount */
+            accounting_amount: string;
+        };
         /** InstallmentRead */
         InstallmentRead: {
             /** Number */
@@ -693,6 +724,37 @@ export interface components {
             category_id?: string | null;
             /** Commitment Id */
             commitment_id?: string | null;
+        };
+        /** MovementPreviewRead */
+        MovementPreviewRead: {
+            /** Suggested Accounting Amount */
+            suggested_accounting_amount: string | null;
+            first_installment: components["schemas"]["InstallmentPreviewRead"] | null;
+            warning: components["schemas"]["PurchaseWarningRead"] | null;
+        };
+        /**
+         * MovementPreviewRequest
+         * @description What's being captured, before saving it. Nothing is stored.
+         */
+        MovementPreviewRequest: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "expense" | "income";
+            /** Amount */
+            amount: number | string;
+            /** Accounting Amount */
+            accounting_amount?: number | string | null;
+            /** Commitment Id */
+            commitment_id?: string | null;
+            /** Months */
+            months?: number | null;
         };
         /** MovementRead */
         MovementRead: {
@@ -791,6 +853,12 @@ export interface components {
             mode?: components["schemas"]["SavingsMode"] | null;
             /** Rounding Multiple */
             rounding_multiple?: number | null;
+        };
+        /** PurchaseWarningRead */
+        PurchaseWarningRead: {
+            level: components["schemas"]["WarningLevel"];
+            /** Excess */
+            excess: string;
         };
         /**
          * SavingsMode
@@ -931,6 +999,12 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * WarningLevel
+         * @description Warnings before saving a credit card purchase in savings mode. They never block.
+         * @enum {string}
+         */
+        WarningLevel: "over_available" | "over_real_balance";
     };
     responses: never;
     parameters: never;
@@ -1120,6 +1194,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MovementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_movement_api_v1_movements_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MovementPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovementPreviewRead"];
                 };
             };
             /** @description Validation Error */
