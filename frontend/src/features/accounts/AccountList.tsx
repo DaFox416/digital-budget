@@ -2,7 +2,11 @@ import { useAccounts, useSummary } from '../../api/queries'
 import { EmptyState, ErrorState, LoadingState } from '../../ui/Section'
 import { AccountCard } from './AccountCard'
 
-export function AccountList() {
+interface AccountListProps {
+  onOpenCard: (accountId: string) => void
+}
+
+export function AccountList({ onOpenCard }: AccountListProps) {
   const accounts = useAccounts()
   // Optional here: if the summary fails, cards still show their balance and available credit
   const summary = useSummary()
@@ -21,7 +25,17 @@ export function AccountList() {
     <ul className="space-y-3">
       {accounts.data.map((account) => (
         <li key={account.id}>
-          <AccountCard account={account} card={cards.get(account.id)} />
+          <AccountCard
+            account={account}
+            card={cards.get(account.id)}
+            onOpen={
+              account.type === 'credit'
+                ? () => {
+                    onOpenCard(account.id)
+                  }
+                : undefined
+            }
+          />
         </li>
       ))}
     </ul>

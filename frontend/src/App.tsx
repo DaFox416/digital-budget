@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react'
 
-import { useHealth } from './api/queries'
+import { useAccounts, useHealth } from './api/queries'
 import { CapturePanel } from './capture/CapturePanel'
 import { useNewShortcut } from './capture/useNewShortcut'
 import { AccountList } from './features/accounts/AccountList'
+import { CardDetail } from './features/cards/CardDetail'
 import { MovementList } from './features/movements/MovementList'
 import { SummaryFigures } from './features/summary/SummaryFigures'
 import { Section } from './ui/Section'
+import { SidePanel } from './ui/SidePanel'
 
 type ApiStatus = 'checking' | 'ok' | 'down'
 
@@ -39,7 +41,11 @@ function App() {
   const openCapture = useCallback(() => {
     setCapturing(true)
   }, [])
-  useNewShortcut(openCapture, !capturing)
+  // The credit card whose detail is open
+  const [openCard, setOpenCard] = useState<string | null>(null)
+  const openCardName = useAccounts().data?.find((account) => account.id === openCard)?.name
+  // N doesn't open the capture on top of another panel
+  useNewShortcut(openCapture, !capturing && openCard === null)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -69,7 +75,7 @@ function App() {
         </Section>
         <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr]">
           <Section title="Cuentas">
-            <AccountList />
+            <AccountList onOpenCard={setOpenCard} />
           </Section>
           <Section title="Movimientos">
             <MovementList />
@@ -79,7 +85,7 @@ function App() {
 
       {/* Phones: a big + at the bottom right opens the capture (first step of phase 2's touch
           capture). Hidden while the panel is open, which fills the screen */}
-      {!capturing && (
+      {!capturing && openCard === null && (
         <button
           type="button"
           onClick={openCapture}
@@ -88,6 +94,17 @@ function App() {
         >
           <span aria-hidden="true">+</span>
         </button>
+      )}
+
+      {openCard !== null && (
+        <SidePanel
+          title={openCardName ?? 'Tarjeta'}
+          onClose={() => {
+            setOpenCard(null)
+          }}
+        >
+          <CardDetail accountId={openCard} />
+        </SidePanel>
       )}
 
       {capturing && (

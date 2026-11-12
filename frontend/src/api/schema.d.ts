@@ -246,6 +246,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cards/{account_id}/installment-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Active Installment Plans
+         * @description The card's MSI purchases with installments left to bill, oldest purchase first.
+         *
+         *     Deleted purchases are left out. An installment counts as billed once its cutoff day has
+         *     passed: on the cutoff day the cycle is still open (rule 4).
+         */
+        get: operations["list_active_installment_plans_api_v1_cards__account_id__installment_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/summary": {
         parameters: {
             query?: never;
@@ -456,6 +479,39 @@ export interface components {
             /** Color */
             color?: string | null;
             credit?: components["schemas"]["CreditConfigUpdate"] | null;
+        };
+        /**
+         * ActiveInstallmentPlanRead
+         * @description An MSI purchase with installments left to bill. Amounts are positive magnitudes.
+         */
+        ActiveInstallmentPlanRead: {
+            /**
+             * Plan Id
+             * Format: uuid
+             */
+            plan_id: string;
+            /** Description */
+            description: string;
+            /**
+             * Purchased On
+             * Format: date
+             */
+            purchased_on: string;
+            /** Total */
+            total: string;
+            /** Months */
+            months: number;
+            /** Installment Amount */
+            installment_amount: string;
+            /** Billed */
+            billed: number;
+            /** Remaining */
+            remaining: string;
+            /**
+             * Next Cutoff
+             * Format: date
+             */
+            next_cutoff: string;
         };
         /** CardCycleRead */
         CardCycleRead: {
@@ -841,6 +897,8 @@ export interface components {
             amount: string;
             /** Is Closed */
             is_closed: boolean;
+            /** Days Until Due */
+            days_until_due: number;
         };
         /**
          * PaymentDueRule
@@ -1427,6 +1485,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_active_installment_plans_api_v1_cards__account_id__installment_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveInstallmentPlanRead"][];
                 };
             };
             /** @description Validation Error */

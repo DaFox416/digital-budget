@@ -21,6 +21,10 @@ export const queryKeys = {
   preferences: ['preferences'] as const,
   commitments: ['commitments'] as const,
   preview: (body: MovementPreviewRequest) => ['movement-preview', body] as const,
+  // Under ['cards'], so one invalidation refreshes every card's statement and plans
+  statement: (accountId: string, cycle: string) =>
+    ['cards', accountId, 'statement', cycle] as const,
+  cardPlans: (accountId: string) => ['cards', accountId, 'installment-plans'] as const,
 }
 
 export function useHealth() {
@@ -87,5 +91,33 @@ export function usePreview(body: MovementPreviewRequest | null) {
     // A placeholder key while there's nothing to preview; `enabled` keeps it from running
     ...previewQuery(body ?? { account_id: '', type: 'expense', amount: '0' }),
     enabled: body !== null,
+  })
+}
+
+/** The statement of the card cycle that contains `cycle` (a cutoff date works). */
+export function useStatement(accountId: string, cycle: string | null) {
+  return useQuery({
+    queryKey: queryKeys.statement(accountId, cycle ?? ''),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/cards/{account_id}/statement', {
+          params: { path: { account_id: accountId }, query: { cycle } },
+        }),
+      ),
+    // Waits for the cutoff, which comes from /summary
+    enabled: cycle !== null,
+  })
+}
+
+/** The card's MSI purchases with installments left to bill. */
+export function useCardPlans(accountId: string) {
+  return useQuery({
+    queryKey: queryKeys.cardPlans(accountId),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/cards/{account_id}/installment-plans', {
+          params: { path: { account_id: accountId } },
+        }),
+      ),
   })
 }

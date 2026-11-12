@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 
 import { useCreateInstallmentPlan, useCreateMovement, useCreateTransfer } from '../api/mutations'
 import {
@@ -19,6 +19,7 @@ import type {
 import { formatShortDate, todayInMexico } from '../lib/dates'
 import { formatMoney, isMoney, parseAmountInput } from '../lib/money'
 import { ErrorState, LoadingState } from '../ui/Section'
+import { SidePanel } from '../ui/SidePanel'
 
 export type CaptureType = 'expense' | 'income' | 'transfer' | 'card_payment'
 
@@ -172,51 +173,16 @@ interface CapturePanelProps {
 export function CapturePanel({ onClose }: CapturePanelProps) {
   const accounts = useAccounts()
 
-  function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === 'Escape') onClose()
-  }
-
-  // Clicking outside the panel closes it (on wide screens, where the page shows behind)
-  function handleBackdrop(event: MouseEvent) {
-    if (event.target === event.currentTarget) onClose()
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-20 flex justify-end bg-slate-900/30"
-      onMouseDown={handleBackdrop}
-      onKeyDown={handleKeyDown}
-    >
-      {/* Full screen on phones; a side panel from sm (640 px) */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="capture-title"
-        className="flex h-full w-full flex-col overflow-y-auto bg-slate-50 shadow-xl sm:max-w-md"
-      >
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-          <h2 id="capture-title" className="text-base font-semibold text-slate-900">
-            Nuevo movimiento
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
-          >
-            Cerrar <kbd className="text-xs text-slate-400">Esc</kbd>
-          </button>
-        </div>
-        <div className="p-4">
-          {accounts.isPending ? (
-            <LoadingState />
-          ) : accounts.isError ? (
-            <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
-          ) : (
-            <CaptureForm accounts={accounts.data} />
-          )}
-        </div>
-      </div>
-    </div>
+    <SidePanel title="Nuevo movimiento" onClose={onClose}>
+      {accounts.isPending ? (
+        <LoadingState />
+      ) : accounts.isError ? (
+        <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
+      ) : (
+        <CaptureForm accounts={accounts.data} />
+      )}
+    </SidePanel>
   )
 }
 

@@ -46,6 +46,7 @@ export const tdcOroSummary: CardSummary = {
     payment_due: '2026-12-05',
     amount: '1634.00',
     is_closed: true,
+    days_until_due: 15,
   },
 }
 

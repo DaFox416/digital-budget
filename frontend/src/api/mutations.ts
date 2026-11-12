@@ -75,6 +75,8 @@ function refreshAfterSaving(client: QueryClient): Promise<unknown> {
       queryKeys.accounts,
       queryKeys.summary,
       queryKeys.commitments,
+      // Every card's statement and MSI plans
+      ['cards'],
       // "available" changed, so do the warnings and suggestions
       ['movement-preview'],
     ].map((queryKey) => client.invalidateQueries({ queryKey })),

@@ -13,13 +13,19 @@ interface AccountCardProps {
   account: Account
   // From /summary: debt and next payment of a credit card, already calculated by the API
   card?: CardSummary
+  // Credit cards open their detail
+  onOpen?: () => void
 }
 
-export function AccountCard({ account, card }: AccountCardProps) {
+export function AccountCard({ account, card, onOpen }: AccountCardProps) {
   return (
     <article
       aria-label={account.name}
-      className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
+      // Tapping anywhere on a card opens it; the "Ver detalle" button is the keyboard's way in
+      onClick={onOpen}
+      className={`rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${
+        onOpen ? 'cursor-pointer hover:ring-sky-300' : ''
+      }`}
       // A thin stripe in the account's color, if it has one
       style={account.color ? { borderLeft: `4px solid ${account.color}` } : undefined}
     >
@@ -48,6 +54,19 @@ export function AccountCard({ account, card }: AccountCardProps) {
           </div>
           {card && <NextPayment card={card} />}
         </dl>
+      )}
+      {onOpen && (
+        <button
+          type="button"
+          onClick={(event) => {
+            // The article's own click would open it again
+            event.stopPropagation()
+            onOpen()
+          }}
+          className="mt-3 text-sm font-medium text-sky-700 hover:underline"
+        >
+          Ver detalle →
+        </button>
       )}
     </article>
   )

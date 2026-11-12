@@ -92,6 +92,7 @@ describe('Accounts', () => {
               payment_due: '2027-01-05',
               amount: '1200.00',
               is_closed: false,
+              days_until_due: 26,
             },
           },
         ],
@@ -143,5 +144,59 @@ describe('New movement button for phones', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Nuevo movimiento' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo movimiento' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Card detail', () => {
+  it('opens from the card with what to pay, its statement and active MSI, and closes with Esc', async () => {
+    stubApi({
+      ...homeRoutes,
+      '/api/v1/cards/tdc-oro/statement': {
+        account_id: 'tdc-oro',
+        start: '2026-10-16',
+        cutoff: '2026-11-15',
+        payment_due: '2026-12-05',
+        regular_charges: '634.00',
+        installments_due: '1000.00',
+        installments: [],
+        payments_after_cutoff: '0.00',
+        payment_for_no_interest: '1634.00',
+      },
+      '/api/v1/cards/tdc-oro/installment-plans': [
+        {
+          plan_id: 'laptop',
+          description: 'Laptop',
+          purchased_on: '2026-11-10',
+          total: '12000.00',
+          months: 12,
+          installment_amount: '1000.00',
+          billed: 1,
+          remaining: '11000.00',
+          next_cutoff: '2026-12-15',
+        },
+      ],
+    })
+    renderApp()
+
+    const card = await screen.findByRole('article', { name: 'TDC Oro' })
+    await userEvent.click(within(card).getByRole('button', { name: /Ver detalle/ }))
+
+    const panel = await screen.findByRole('dialog', { name: 'TDC Oro' })
+    const toPay = within(panel).getByRole('region', { name: 'Por pagar' })
+    expect(await within(toPay).findByText('$1,634.00')).toBeVisible()
+    expect(toPay).toHaveTextContent('Pagar antes del 5 dic')
+    expect(toPay).toHaveTextContent('vence en 15 días')
+
+    const statement = within(panel).getByRole('region', { name: 'Estado de cuenta' })
+    expect(await within(statement).findByText('Del 16 oct al 15 nov')).toBeVisible()
+    expect(statement).toHaveTextContent('Mensualidades MSI$1,000.00')
+
+    const plans = within(panel).getByRole('region', { name: 'MSI activos' })
+    expect(await within(plans).findByText('Laptop')).toBeVisible()
+    expect(plans).toHaveTextContent('1 de 12 facturadas · siguiente corte 15 dic')
+    expect(plans).toHaveTextContent('faltan $11,000.00')
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
