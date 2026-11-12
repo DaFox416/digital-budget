@@ -357,6 +357,13 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     }
 
     const checked = previewBody && (await previewNow(previewBody))
+    if (checked?.credit_limit_excess) {
+      // Over the card's available credit: never saved, not even "anyway". The message comes
+      // from the preview; the amount is what has to change
+      setError(null)
+      focusField('amount')
+      return
+    }
     if (checked?.warning?.level === 'over_real_balance' && overRealShownFor !== previewKey) {
       // Level 2 asks once more: the next Enter, Ctrl+Enter or click saves it
       setOverRealShownFor(previewKey)
@@ -459,7 +466,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     focusField(returnTo)
   }
 
-  const warning = current?.warning ?? null
+  const limitExcess = current?.credit_limit_excess ?? null
+  // The API gives no warning over the limit; checked here too, so nothing else is shown
+  const warning = limitExcess ? null : (current?.warning ?? null)
   const confirmingOverReal = overRealShownFor !== null && overRealShownFor === previewKey
 
   return (
@@ -701,6 +710,16 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </label>
       </div>
 
+      {limitExcess && (
+        <p
+          data-limit
+          role="alert"
+          className="rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-900 ring-2 ring-rose-400"
+        >
+          Esta compra supera el crédito disponible de la tarjeta por {money(limitExcess)}. No se
+          puede guardar: baja el monto o usa otra cuenta.
+        </p>
+      )}
       {warning && <WarningMessage warning={warning} confirming={confirmingOverReal} />}
       {unreviewed && (
         <UnreviewedNotice
@@ -723,7 +742,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       <button
         ref={submitRef}
         type="submit"
-        disabled={saving}
+        disabled={saving || limitExcess !== null}
         className={`w-full rounded-lg px-4 py-3 font-semibold text-white disabled:opacity-60 ${
           confirmingOverReal ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700'
         }`}

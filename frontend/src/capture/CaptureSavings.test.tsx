@@ -17,7 +17,13 @@ const savingsRoutes = {
 }
 
 function previewReply(fields: Partial<MovementPreview>): MovementPreview {
-  return { suggested_accounting_amount: null, first_installment: null, warning: null, ...fields }
+  return {
+    suggested_accounting_amount: null,
+    first_installment: null,
+    warning: null,
+    credit_limit_excess: null,
+    ...fields,
+  }
 }
 
 async function openPanel() {
@@ -137,6 +143,27 @@ describe('Capture warnings and MSI', () => {
     await userEvent.keyboard('{Enter}')
     expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
     expect(await posted(mock, '/api/v1/movements')).toHaveLength(1)
+  })
+
+  it("never saves a card purchase over the card's available credit", async () => {
+    const { mock } = stubApi({
+      ...homeRoutes,
+      'POST /api/v1/movements/preview': previewReply({ credit_limit_excess: '250.00' }),
+      'POST /api/v1/movements': movements[0],
+    })
+    const panel = await openPanel()
+
+    await userEvent.keyboard('{Enter}15000{Enter}')
+    await userEvent.selectOptions(within(panel).getByLabelText('Cuenta'), 'TDC Oro')
+    expect(
+      await within(panel).findByText(/supera el crédito disponible de la tarjeta por \$250\.00/),
+    ).toBeVisible()
+    expect(within(panel).getByRole('button', { name: /^Guardar/ })).toBeDisabled()
+
+    // Neither Ctrl+Enter (and Enter on the notice) saves it: back to the amount
+    await userEvent.keyboard('{Control>}{Enter}{/Control}{Enter}')
+    expect(within(panel).getByLabelText('Monto')).toHaveFocus()
+    expect(await posted(mock, '/api/v1/movements')).toEqual([])
   })
 
   it('saves a card purchase in installments as an MSI plan', async () => {

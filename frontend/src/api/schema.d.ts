@@ -119,6 +119,9 @@ export interface paths {
          *     Warnings only apply to credit card expenses: level 2 (`over_real_balance`) in every mode,
          *     level 1 (`over_available`) only in savings mode. With `months`, it's an MSI purchase:
          *     level 1 compares its first installment and level 2 its total.
+         *
+         *     `credit_limit_excess` says how much a card purchase (an MSI total) goes over the card's
+         *     available credit: it can't be saved, so no warning is given then.
          */
         post: operations["preview_movement_api_v1_movements_preview_post"];
         delete?: never;
@@ -167,7 +170,8 @@ export interface paths {
         put?: never;
         /**
          * Restore Movement
-         * @description Undo a delete, including the other leg of a transfer. 409 if it isn't deleted.
+         * @description Undo a delete, including the other leg of a transfer. 409 if it isn't deleted, or if
+         *     restoring a card purchase would go over the card's available credit.
          */
         post: operations["restore_movement_api_v1_movements__movement_id__restore_post"];
         delete?: never;
@@ -731,6 +735,8 @@ export interface components {
             suggested_accounting_amount: string | null;
             first_installment: components["schemas"]["InstallmentPreviewRead"] | null;
             warning: components["schemas"]["PurchaseWarningRead"] | null;
+            /** Credit Limit Excess */
+            credit_limit_excess: string | null;
         };
         /**
          * MovementPreviewRequest
