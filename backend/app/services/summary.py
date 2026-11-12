@@ -22,6 +22,8 @@ class NextPaymentSummary:
     cycle: CardCycle
     amount: Decimal
     is_closed: bool
+    # 0 on the due date itself
+    days_until_due: int
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,7 @@ def get_summary(session: Session, user_id: uuid.UUID) -> Summary:
                     cycle=next_payment.cycle,
                     amount=statement.payment_for_no_interest,
                     is_closed=next_payment.is_closed,
+                    days_until_due=(next_payment.cycle.payment_due - on).days,
                 ),
             )
         )

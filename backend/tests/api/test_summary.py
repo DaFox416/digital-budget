@@ -74,6 +74,7 @@ def test_card_with_msi_purchase(client: TestClient) -> None:
                 # 634 + the first installment
                 "amount": "1634.00",
                 "is_closed": True,
+                "days_until_due": 15,
             },
         }
     ]
@@ -107,4 +108,5 @@ def test_after_the_due_date_shows_the_open_cycle(
         # Charged so far in the open cycle: 200 + the second installment
         "amount": "1200.00",
         "is_closed": False,
+        "days_until_due": 26,
     }

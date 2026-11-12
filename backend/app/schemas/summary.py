@@ -13,6 +13,8 @@ class NextPaymentRead(BaseModel):
     # previous statement is past due and this is what's been charged so far
     amount: Money
     is_closed: bool
+    # 0 on the due date itself. Never negative: past the due date the open cycle is shown
+    days_until_due: int
 
 
 class CardSummaryRead(BaseModel):

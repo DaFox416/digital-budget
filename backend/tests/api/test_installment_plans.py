@@ -143,3 +143,30 @@ class TestStatement:
         assert result["regular_charges"] == "200.00"
         assert result["installments"][0]["number"] == 2
         assert result["payment_for_no_interest"] == "1200.00"
+
+
+def test_card_lists_only_plans_with_installments_left_to_bill(client: TestClient) -> None:
+    card = create_account(client, "TDC Oro", type="credit")
+    laptop = post_plan(client, card["id"], "12000", 12, purchased_on="2026-11-10").json()
+    # Billed on Sep 15, Oct 15 and Nov 15: nothing left on Nov 20
+    post_plan(client, card["id"], "900", 3, purchased_on="2026-09-01")
+    deleted = post_plan(client, card["id"], "600", 3, purchased_on="2026-11-18").json()
+    assert client.delete(f"/api/v1/movements/{deleted['movement_id']}").status_code == 204
+
+    response = client.get(f"/api/v1/cards/{card['id']}/installment-plans")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == [
+        {
+            "plan_id": laptop["id"],
+            "description": "",
+            "purchased_on": "2026-11-10",
+            "total": "12000.00",
+            "months": 12,
+            "installment_amount": "1000.00",
+            # The first one closed with the Nov 15 statement
+            "billed": 1,
+            "remaining": "11000.00",
+            "next_cutoff": "2026-12-15",
+        }
+    ]

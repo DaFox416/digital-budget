@@ -66,3 +66,23 @@ def charged_accounting_total(session: Session, user_id: uuid.UUID, on: date) -> 
         )
     )
     return Decimal(session.scalar(statement) or 0)
+
+
+def list_active_plans_for_account(
+    session: Session, user_id: uuid.UUID, account_id: uuid.UUID
+) -> Sequence[InstallmentPlan]:
+    """A card's plans whose purchase isn't deleted, oldest purchase first.
+
+    Installments load with each plan (selectin).
+    """
+    statement = (
+        select(InstallmentPlan)
+        .join(Movement, InstallmentPlan.movement_id == Movement.id)
+        .where(
+            InstallmentPlan.user_id == user_id,
+            InstallmentPlan.account_id == account_id,
+            Movement.deleted_at.is_(None),
+        )
+        .order_by(InstallmentPlan.purchased_on, InstallmentPlan.created_at)
+    )
+    return session.scalars(statement).all()

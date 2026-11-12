@@ -4,13 +4,20 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.domain.balances import check_credit_limit
-from app.domain.enums import MovementType, SavingsMode
-from app.domain.installments import installment_schedule, validate_installment_account
+from app.domain.enums import AccountType, MovementType, SavingsMode
+from app.domain.installments import (
+    PlanProgress,
+    ScheduledInstallment,
+    installment_schedule,
+    plan_progress,
+    validate_installment_account,
+)
 from app.domain.money import to_money
 from app.domain.savings import installment_accounting
 from app.models import Installment, InstallmentPlan, Movement
 from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
+from app.repositories import installments as installments_repo
 from app.schemas.installments import InstallmentPlanCreate
 from app.services import savings as savings_service
 from app.services.accounts import current_credit_available, cycle_config
@@ -94,3 +101,26 @@ def create_plan(
         session.rollback()
         raise
     return plan
+
+
+def list_active_plans(
+    session: Session, user_id: uuid.UUID, account_id: uuid.UUID
+) -> list[tuple[InstallmentPlan, PlanProgress]]:
+    """A card's MSI plans with installments left to bill, and how far each one is today."""
+    account = accounts_repo.get(session, user_id, account_id)
+    if account is None or account.type is not AccountType.CREDIT:
+        raise NotFoundError(f"Credit card {account_id} not found")
+
+    on = today()
+    result: list[tuple[InstallmentPlan, PlanProgress]] = []
+    for plan in installments_repo.list_active_plans_for_account(session, user_id, account_id):
+        progress = plan_progress(
+            (
+                ScheduledInstallment(i.number, i.amount, i.cutoff_date, i.charged_on)
+                for i in plan.installments
+            ),
+            on,
+        )
+        if progress.next_cutoff is not None:
+            result.append((plan, progress))
+    return result

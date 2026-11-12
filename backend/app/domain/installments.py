@@ -80,3 +80,28 @@ def pending_to_charge(installments: Iterable[ScheduledInstallment], on: date) ->
     This part of the card's debt doesn't reduce "available" yet.
     """
     return to_money(sum((i.amount for i in installments if i.charged_on > on), Decimal("0")))
+
+
+@dataclass(frozen=True)
+class PlanProgress:
+    # Installments already billed in a closed statement
+    billed: int
+    # What's left to bill, in the open cycle and the ones after it
+    remaining: Decimal
+    # Cutoff of the next installment to bill; None when every one is billed
+    next_cutoff: date | None
+
+
+def plan_progress(installments: Iterable[ScheduledInstallment], on: date) -> PlanProgress:
+    """How far an MSI plan is on `on`.
+
+    An installment is billed once its cutoff has passed: on the cutoff day itself the cycle is
+    still open (rule 4), so its installment still counts as pending.
+    """
+    items = list(installments)
+    pending = sorted((i for i in items if i.cutoff >= on), key=lambda i: i.cutoff)
+    return PlanProgress(
+        billed=len(items) - len(pending),
+        remaining=to_money(sum((i.amount for i in pending), Decimal("0"))),
+        next_cutoff=pending[0].cutoff if pending else None,
+    )

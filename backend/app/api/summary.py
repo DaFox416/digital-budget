@@ -33,6 +33,7 @@ def get_summary(session: SessionDep, user_id: CurrentUserId) -> SummaryRead:
                     payment_due=card.next_payment.cycle.payment_due,
                     amount=card.next_payment.amount,
                     is_closed=card.next_payment.is_closed,
+                    days_until_due=card.next_payment.days_until_due,
                 ),
             )
             for card in summary.cards

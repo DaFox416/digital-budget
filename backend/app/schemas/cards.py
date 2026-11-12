@@ -30,3 +30,21 @@ class StatementRead(BaseModel):
     payments_after_cutoff: Money
     # Rule 8: regular charges + installments - payments after the cutoff (never negative)
     payment_for_no_interest: Money
+
+
+class ActiveInstallmentPlanRead(BaseModel):
+    """An MSI purchase with installments left to bill. Amounts are positive magnitudes."""
+
+    plan_id: uuid.UUID
+    description: str
+    purchased_on: date
+    total: Money
+    months: int
+    # The monthly installment (the last one may differ by a few cents)
+    installment_amount: Money
+    # Installments already billed in a closed statement (on its cutoff day a cycle is still open)
+    billed: int
+    # What's left to bill, from the open cycle on
+    remaining: Money
+    # Cutoff of the next installment to bill
+    next_cutoff: date

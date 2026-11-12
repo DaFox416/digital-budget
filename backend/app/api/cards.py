@@ -4,7 +4,8 @@ from datetime import date
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUserId, SessionDep
-from app.schemas.cards import StatementInstallmentRead, StatementRead
+from app.schemas.cards import ActiveInstallmentPlanRead, StatementInstallmentRead, StatementRead
+from app.services import installments as installments_service
 from app.services import statements as statements_service
 
 router = APIRouter(prefix="/cards", tags=["cards"])
@@ -40,3 +41,29 @@ def get_statement(
         payments_after_cutoff=statement.payments_after_cutoff,
         payment_for_no_interest=statement.payment_for_no_interest,
     )
+
+
+@router.get("/{account_id}/installment-plans")
+def list_active_installment_plans(
+    account_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
+) -> list[ActiveInstallmentPlanRead]:
+    """The card's MSI purchases with installments left to bill, oldest purchase first.
+
+    Deleted purchases are left out. An installment counts as billed once its cutoff day has
+    passed: on the cutoff day the cycle is still open (rule 4).
+    """
+    return [
+        ActiveInstallmentPlanRead(
+            plan_id=plan.id,
+            description=plan.description,
+            purchased_on=plan.purchased_on,
+            total=plan.total,
+            months=plan.months,
+            installment_amount=plan.installments[0].amount,
+            billed=progress.billed,
+            remaining=progress.remaining,
+            # Active plans always have one
+            next_cutoff=progress.next_cutoff or plan.purchased_on,
+        )
+        for plan, progress in installments_service.list_active_plans(session, user_id, account_id)
+    ]

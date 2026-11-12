@@ -7,9 +7,11 @@ from app.domain.cycles import CreditCycleConfig
 from app.domain.enums import AccountType, PaymentDueRule
 from app.domain.errors import InvalidAmountError, InvalidInstallmentPlanError
 from app.domain.installments import (
+    PlanProgress,
     ScheduledInstallment,
     installment_schedule,
     pending_to_charge,
+    plan_progress,
     split_installments,
     validate_installment_account,
 )
@@ -107,6 +109,20 @@ class TestPendingToCharge:
 
         assert pending_to_charge(schedule, date(2026, 11, 15)) == Decimal("666.67")
         assert pending_to_charge(schedule, date(2026, 11, 16)) == Decimal("333.34")
+
+
+def test_plan_progress_counts_the_cutoff_day_as_still_pending() -> None:
+    # 333.33, 333.33 and 333.34, billed on Nov 15, Dec 15 and Jan 15 (rule 4: the cycle is
+    # still open on its cutoff day)
+    schedule = installment_schedule("1000", 3, date(2026, 11, 10), CUTOFF_15)
+
+    assert plan_progress(schedule, date(2026, 11, 15)) == PlanProgress(
+        0, Decimal("1000.00"), date(2026, 11, 15)
+    )
+    assert plan_progress(schedule, date(2026, 11, 16)) == PlanProgress(
+        1, Decimal("666.67"), date(2026, 12, 15)
+    )
+    assert plan_progress(schedule, date(2027, 1, 16)) == PlanProgress(3, Decimal("0.00"), None)
 
 
 def test_only_credit_cards_take_installment_plans() -> None:
