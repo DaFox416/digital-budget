@@ -69,7 +69,7 @@
 | 2026-11-11 | En el panel, el contable propuesto (y la advertencia) se pide una sola vez, cuando el monto real está completo: al presionar `Enter` en el monto o al salir del campo (ratón o toque en móvil), no mientras se escribe. `Ctrl+Enter` desde el monto lo llena igual que un `Enter` antes de seguir con el guardado. Se implementa el día 12. |
 | 2026-11-11 | Por ahora todos los datos de la BD de desarrollo son de prueba: las pruebas manuales se comparan con el cálculo exacto de cada paso, no con estados de cuenta. El estado al cerrar la segunda ronda (`backups/budget-2026-11-11.dump`) es el nuevo punto de partida. |
 | 2026-11-11 | Selector de MSI con teclado: fila 1 con botones `Sin MSI`, 3, 6, 9 y 12 (`←` `→`, como las pestañas de tipo); fila 2 con un campo para otro plazo de 3 a 48 (`↓` baja, `↑` sube). Al llegar no hay nada elegido: `Enter` no avanza hasta elegir algo con `←`, `→` o `↓`; con una opción elegida, `Enter` pasa a Categoría. Se implementa el día 12. |
-| 2026-11-11 | Una compra con tarjeta de crédito nunca puede superar su crédito disponible (límite − deuda), ni con advertencia: no hay "Guardar de todos modos". En MSI se compara el total. Lo rechaza el backend (y `POST /movements/preview` lo avisa para que el panel no ofrezca guardar). Propuesta para el plan del día 12: aplica también al editar un gasto de tarjeta y al restaurar uno borrado. |
+| 2026-11-11 | Una compra con tarjeta de crédito nunca puede superar su crédito disponible (límite − deuda), ni con advertencia: no hay "Guardar de todos modos". En MSI se compara el total. Lo rechaza el backend (y `POST /movements/preview` lo avisa para que el panel no ofrezca guardar). Aplica también al editar un gasto de tarjeta y al restaurar uno borrado (confirmado el mismo día). Si restaurar dejaría la tarjeta por encima del límite, se rechaza y se le explica al usuario cómo corregirlo a mano, paso a paso: borrar los movimientos posteriores que no debieron aceptarse, restaurar el original y capturar de nuevo lo que sí ocurrió. No se corrige automáticamente: solo el usuario sabe cuáles de sus gastos son reales. |
 
 ## Resumen
 
@@ -427,7 +427,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 Para retomar en una sesión nueva:
 
-1. Proponer el plan del jueves 12 con las cuatro tareas que salieron de las pruebas (disponible y apartados en pantalla, contable propuesto al terminar el monto, selector de MSI con flechas y límite de crédito) y confirmar si el bloqueo por límite aplica también al editar y al restaurar.
+1. Proponer el plan del jueves 12 con las cuatro tareas que salieron de las pruebas (disponible y apartados en pantalla, contable propuesto al terminar el monto, selector de MSI con flechas y límite de crédito, que también bloquea al editar y al restaurar, con los pasos de corrección manual al restaurar).
 2. Evaluar también con el día 12: editar y borrar desde la lista de movimientos, pantalla de apartados y liberar sobrante desde la interfaz (por ahora en Swagger).
 
 **Jue 12 · Pantallas de saldos y tarjetas**
