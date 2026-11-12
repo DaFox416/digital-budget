@@ -73,6 +73,7 @@
 | 2026-11-12 | El límite de crédito solo aplica a compras (gastos en tarjeta, incluidas las MSI): al crear, al editar (solo si el monto sube; el monto anterior cuenta como disponible, y bajarlo siempre se permite) y al restaurar. Borrar o reducir un pago de tarjeta y borrar una devolución también suben la deuda, pero no se bloquean; esos casos se revisan en la fase 2. Al crear o editar responde 422; al restaurar, 409 con los pasos de la corrección manual. `POST /movements/preview` devuelve `credit_limit_excess` (cuánto se pasa) y en ese caso no da advertencia; el panel muestra el mensaje en rojo y deshabilita Guardar. |
 | 2026-11-12 | Selector de MSI: al llegar ya está elegido `Sin MSI` (cambia la decisión del 11 nov de empezar sin nada elegido), así que `Enter` avanza directo a Categoría. `←` `→` eligen entre `Sin MSI`, 3, 6, 9 y 12 sin dar la vuelta; `↓` baja al campo "Otro plazo" (3 a 48) y `↑` regresa. Un plazo inválido marca el error y `Enter` no avanza; vaciar el campo regresa a `Sin MSI`. |
 | 2026-11-12 | El preview se pide con los textos completos: el monto, el contable escrito a mano y "Otro plazo" se confirman con `Enter`, `Ctrl+Enter` o al salir del campo; las listas y los botones cuentan al instante. Se quita la espera de 300 ms tras cada tecla. Mientras se cambia un texto ya confirmado, no se muestra la sugerencia anterior. Guardar siempre revisa lo que está escrito en ese momento. |
+| 2026-11-12 | En móvil, un botón `+` fijo abajo a la derecha abre la captura (se adelanta de la captura táctil de la fase 2) y el botón "Nuevo" del encabezado queda solo desde `sm`. En móvil los campos del panel usan 16 px de letra, porque iOS hace zoom al enfocar campos con menos. Revisado en Chrome con emulación de 375 px antes de probar en el celular. |
 
 ## Resumen
 
@@ -440,7 +441,7 @@ Para retomar en una sesión nueva:
 - [x] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo (pruebas manuales del 11 nov; 2026-11-12, empieza en `Sin MSI`)
 - [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)
 - [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
-- [ ] Diseño responsivo y prueba en el celular por la red local
+- [ ] Diseño responsivo y prueba en el celular por la red local (2026-11-12: diseño hecho y revisado en Chrome a 375 px; falta la prueba en el celular)
 
 **Vie 13 · Demo**
 

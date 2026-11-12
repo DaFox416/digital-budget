@@ -159,8 +159,10 @@ function fieldOf(element: HTMLElement): FieldKey | null {
   return FIELD_KEYS.find((item) => item === key) ?? null
 }
 
-const fieldClass =
+// text-base on phones: fields inherit the label's 14 px, and iOS zooms in on fields under 16 px
+const fieldBase =
   'mt-1 block w-full rounded-lg border-0 bg-white px-3 py-2 text-slate-900 ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500'
+const fieldClass = `${fieldBase} text-base sm:text-sm`
 const labelClass = 'block text-sm font-medium text-slate-700'
 
 interface CapturePanelProps {
@@ -648,7 +650,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           onBlur={() => {
             setCommittedAmountText(amountText)
           }}
-          className={`${fieldClass} text-lg tabular-nums`}
+          className={`${fieldBase} text-lg tabular-nums`}
         />
       </label>
 
@@ -702,6 +704,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
             Meses sin intereses
           </p>
           <div role="radiogroup" aria-labelledby="months-label" className="mt-1 flex gap-2">
+            {/* Phones: the buttons fill the width and are tall enough for a finger */}
             {MONTH_OPTIONS.map((item) => {
               // A typed "other term" leaves no button chosen
               const chosen = otherMonthsText.trim() === '' && monthsText === item.value
@@ -721,7 +724,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
                   onClick={() => {
                     chooseMonths(item.value)
                   }}
-                  className={`rounded-full px-3 py-1 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none ${
+                  className={`flex-1 rounded-full px-2 py-2 text-sm whitespace-nowrap focus:ring-2 focus:ring-sky-500 focus:outline-none sm:flex-none sm:px-3 sm:py-1 ${
                     chosen
                       ? 'bg-slate-900 text-white'
                       : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
@@ -747,7 +750,8 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
                 if (event.target.value.trim() === '') setMonthsText('')
               }}
               onBlur={commitOtherMonths}
-              className="w-16 rounded-lg border-0 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500"
+              // text-base on phones: iOS zooms in on fields with text under 16 px
+              className="w-16 rounded-lg border-0 bg-white px-2 py-1 text-base text-slate-900 tabular-nums ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500 sm:text-sm"
             />
           </label>
           {isInstallments && current?.first_installment && (
@@ -821,7 +825,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
         </label>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className={labelClass}>
           Fecha
           <input

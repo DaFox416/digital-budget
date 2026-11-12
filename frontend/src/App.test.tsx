@@ -133,3 +133,15 @@ describe('Movements', () => {
     expect(within(yesterday).getByText('+$10,164.67')).toBeInTheDocument()
   })
 })
+
+describe('New movement button for phones', () => {
+  it('opens the capture panel and hides while it is open', async () => {
+    stubApi(homeRoutes)
+    renderApp()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo movimiento' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Nuevo movimiento' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nuevo movimiento' })).not.toBeInTheDocument()
+  })
+})

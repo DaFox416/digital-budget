@@ -28,7 +28,8 @@ function ApiStatusBadge() {
   return (
     <p className="flex items-center gap-2 text-xs text-slate-500">
       <span className={`h-2 w-2 rounded-full ${statusColor[status]}`} aria-hidden="true" />
-      API: {statusLabel[status]}
+      {/* Phones only show the dot; the text stays for screen readers */}
+      <span className="sr-only sm:not-sr-only">API: {statusLabel[status]}</span>
     </p>
   )
 }
@@ -51,7 +52,8 @@ function App() {
               type="button"
               onClick={openCapture}
               aria-keyshortcuts="N"
-              className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
+              // Phones use the + button at the bottom, within reach of the thumb
+              className="hidden rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 sm:block"
             >
               Nuevo <kbd className="hidden text-xs opacity-75 sm:inline">N</kbd>
             </button>
@@ -60,7 +62,8 @@ function App() {
       </header>
 
       {/* One column on phones; accounts and movements side by side from lg (1024 px) */}
-      <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
+      {/* Bottom padding on phones, so the + button doesn't cover the last movement */}
+      <main className="mx-auto max-w-5xl space-y-6 px-4 pt-6 pb-24 sm:pb-6">
         <Section title="Resumen">
           <SummaryFigures />
         </Section>
@@ -73,6 +76,19 @@ function App() {
           </Section>
         </div>
       </main>
+
+      {/* Phones: a big + at the bottom right opens the capture (first step of phase 2's touch
+          capture). Hidden while the panel is open, which fills the screen */}
+      {!capturing && (
+        <button
+          type="button"
+          onClick={openCapture}
+          aria-label="Nuevo movimiento"
+          className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-10 flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-3xl leading-none text-white shadow-lg hover:bg-sky-700 active:bg-sky-800 sm:hidden"
+        >
+          <span aria-hidden="true">+</span>
+        </button>
+      )}
 
       {capturing && (
         <CapturePanel
