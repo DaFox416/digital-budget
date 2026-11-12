@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-11
+Última actualización: 2026-11-12
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -70,6 +70,7 @@
 | 2026-11-11 | Por ahora todos los datos de la BD de desarrollo son de prueba: las pruebas manuales se comparan con el cálculo exacto de cada paso, no con estados de cuenta. El estado al cerrar la segunda ronda (`backups/budget-2026-11-11.dump`) es el nuevo punto de partida. |
 | 2026-11-11 | Selector de MSI con teclado: fila 1 con botones `Sin MSI`, 3, 6, 9 y 12 (`←` `→`, como las pestañas de tipo); fila 2 con un campo para otro plazo de 3 a 48 (`↓` baja, `↑` sube). Al llegar no hay nada elegido: `Enter` no avanza hasta elegir algo con `←`, `→` o `↓`; con una opción elegida, `Enter` pasa a Categoría. Se implementa el día 12. |
 | 2026-11-11 | Una compra con tarjeta de crédito nunca puede superar su crédito disponible (límite − deuda), ni con advertencia: no hay "Guardar de todos modos". En MSI se compara el total. Lo rechaza el backend (y `POST /movements/preview` lo avisa para que el panel no ofrezca guardar). Aplica también al editar un gasto de tarjeta y al restaurar uno borrado (confirmado el mismo día). Si restaurar dejaría la tarjeta por encima del límite, se rechaza y se le explica al usuario cómo corregirlo a mano, paso a paso: borrar los movimientos posteriores que no debieron aceptarse, restaurar el original y capturar de nuevo lo que sí ocurrió. No se corrige automáticamente: solo el usuario sabe cuáles de sus gastos son reales. |
+| 2026-11-12 | El límite de crédito solo aplica a compras (gastos en tarjeta, incluidas las MSI): al crear, al editar (solo si el monto sube; el monto anterior cuenta como disponible, y bajarlo siempre se permite) y al restaurar. Borrar o reducir un pago de tarjeta y borrar una devolución también suben la deuda, pero no se bloquean; esos casos se revisan en la fase 2. Al crear o editar responde 422; al restaurar, 409 con los pasos de la corrección manual. `POST /movements/preview` devuelve `credit_limit_excess` (cuánto se pasa) y en ese caso no da advertencia; el panel muestra el mensaje en rojo y deshabilita Guardar. |
 
 ## Resumen
 
@@ -227,7 +228,7 @@ Si se cumplen ambas, solo se muestra el nivel 2. Aplica a cualquier compra con t
 
 **En MSI (2026-11-10):** nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real.
 
-**Límite de crédito (2026-11-11):** antes de las advertencias, una compra que supere el crédito disponible de la tarjeta se rechaza siempre; no es una advertencia y no se puede guardar.
+**Límite de crédito (2026-11-11):** antes de las advertencias, una compra que supere el crédito disponible de la tarjeta se rechaza siempre; no es una advertencia y no se puede guardar. Solo aplica a compras: borrar un pago de tarjeta o una devolución no se bloquea (se revisa en la fase 2).
 
 **Cuentas de ahorro con meta**
 
@@ -435,7 +436,7 @@ Para retomar en una sesión nueva:
 - [ ] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle)
 - [ ] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov)
 - [ ] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo, sin opción por defecto (pruebas manuales del 11 nov)
-- [ ] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov)
+- [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)
 - [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
 - [ ] Diseño responsivo y prueba en el celular por la red local
 
