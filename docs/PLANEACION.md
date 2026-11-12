@@ -433,7 +433,7 @@ Para retomar en una sesión nueva:
 
 **Jue 12 · Pantallas de saldos y tarjetas**
 
-- [ ] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle)
+- [x] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle) (2026-11-12: disponible y el detalle solo en modo ahorro; ahorros con meta se muestra aunque valga $0 hasta la v1)
 - [ ] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov)
 - [ ] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo, sin opción por defecto (pruebas manuales del 11 nov)
 - [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)

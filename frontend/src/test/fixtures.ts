@@ -124,5 +124,6 @@ export const homeRoutes = {
     suggested_accounting_amount: null,
     first_installment: null,
     warning: null,
+    credit_limit_excess: null,
   },
 }

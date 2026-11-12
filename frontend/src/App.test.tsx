@@ -11,7 +11,7 @@ function renderApp() {
 }
 
 describe('Summary', () => {
-  it('shows the main figures', async () => {
+  it('shows the main figures, without "available" in simple mode', async () => {
     stubApi(homeRoutes)
 
     renderApp()
@@ -20,6 +20,26 @@ describe('Summary', () => {
     expect(await within(section).findByText('$14,777.11')).toBeInTheDocument()
     expect(within(section).getByText('$12,634.00')).toBeInTheDocument()
     expect(within(section).getByText('$10,000.00')).toBeInTheDocument()
+    expect(within(section).queryByText('Disponible')).not.toBeInTheDocument()
+    expect(within(section).queryByLabelText('Detalle del disponible')).not.toBeInTheDocument()
+  })
+
+  it('adds "available" and the savings detail in savings mode', async () => {
+    stubApi({
+      ...homeRoutes,
+      '/api/v1/preferences': { mode: 'savings', rounding_multiple: 10 },
+      '/api/v1/summary': { ...summary, set_aside: '500.00', available: '11500.00' },
+    })
+
+    renderApp()
+
+    const section = await screen.findByRole('region', { name: 'Resumen' })
+    expect(await within(section).findByText('Disponible')).toBeInTheDocument()
+    expect(within(section).getByText('$11,500.00')).toBeInTheDocument()
+    const detail = within(section).getByLabelText('Detalle del disponible')
+    expect(detail).toHaveTextContent('Apartado:$500.00')
+    expect(detail).toHaveTextContent('Ahorros con meta:$0.00')
+    expect(detail).toHaveTextContent('Sobrante:$143.11(puedes liberar $140.00)')
   })
 
   it('keeps the other sections when the summary fails, and retries', async () => {
