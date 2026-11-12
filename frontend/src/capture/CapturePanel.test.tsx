@@ -82,9 +82,9 @@ describe('Capture panel', () => {
     const account = within(panel).getByLabelText('Cuenta')
     expect(account).toHaveFocus()
     await userEvent.selectOptions(account, 'TDC Oro')
-    // A card expense can be in installments: that field comes next, empty means no MSI
+    // A card expense can be in installments: that field comes next, on Sin MSI
     await userEvent.keyboard('{Enter}')
-    expect(within(panel).getByLabelText('Meses sin intereses')).toHaveFocus()
+    expect(within(panel).getByRole('radio', { name: 'Sin MSI' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
     await userEvent.selectOptions(within(panel).getByLabelText('Categoría'), 'Comida')
     await userEvent.keyboard('{Enter}{Enter}')

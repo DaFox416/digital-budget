@@ -71,6 +71,8 @@
 | 2026-11-11 | Selector de MSI con teclado: fila 1 con botones `Sin MSI`, 3, 6, 9 y 12 (`←` `→`, como las pestañas de tipo); fila 2 con un campo para otro plazo de 3 a 48 (`↓` baja, `↑` sube). Al llegar no hay nada elegido: `Enter` no avanza hasta elegir algo con `←`, `→` o `↓`; con una opción elegida, `Enter` pasa a Categoría. Se implementa el día 12. |
 | 2026-11-11 | Una compra con tarjeta de crédito nunca puede superar su crédito disponible (límite − deuda), ni con advertencia: no hay "Guardar de todos modos". En MSI se compara el total. Lo rechaza el backend (y `POST /movements/preview` lo avisa para que el panel no ofrezca guardar). Aplica también al editar un gasto de tarjeta y al restaurar uno borrado (confirmado el mismo día). Si restaurar dejaría la tarjeta por encima del límite, se rechaza y se le explica al usuario cómo corregirlo a mano, paso a paso: borrar los movimientos posteriores que no debieron aceptarse, restaurar el original y capturar de nuevo lo que sí ocurrió. No se corrige automáticamente: solo el usuario sabe cuáles de sus gastos son reales. |
 | 2026-11-12 | El límite de crédito solo aplica a compras (gastos en tarjeta, incluidas las MSI): al crear, al editar (solo si el monto sube; el monto anterior cuenta como disponible, y bajarlo siempre se permite) y al restaurar. Borrar o reducir un pago de tarjeta y borrar una devolución también suben la deuda, pero no se bloquean; esos casos se revisan en la fase 2. Al crear o editar responde 422; al restaurar, 409 con los pasos de la corrección manual. `POST /movements/preview` devuelve `credit_limit_excess` (cuánto se pasa) y en ese caso no da advertencia; el panel muestra el mensaje en rojo y deshabilita Guardar. |
+| 2026-11-12 | Selector de MSI: al llegar ya está elegido `Sin MSI` (cambia la decisión del 11 nov de empezar sin nada elegido), así que `Enter` avanza directo a Categoría. `←` `→` eligen entre `Sin MSI`, 3, 6, 9 y 12 sin dar la vuelta; `↓` baja al campo "Otro plazo" (3 a 48) y `↑` regresa. Un plazo inválido marca el error y `Enter` no avanza; vaciar el campo regresa a `Sin MSI`. |
+| 2026-11-12 | El preview se pide con los textos completos: el monto, el contable escrito a mano y "Otro plazo" se confirman con `Enter`, `Ctrl+Enter` o al salir del campo; las listas y los botones cuentan al instante. Se quita la espera de 300 ms tras cada tecla. Mientras se cambia un texto ya confirmado, no se muestra la sugerencia anterior. Guardar siempre revisa lo que está escrito en ese momento. |
 
 ## Resumen
 
@@ -260,7 +262,7 @@ La captura llega en dos fases: primero una convencional que funcione bien en web
 - En modo ahorro aparece un segundo campo, monto contable, ya precargado con el redondeo propuesto.
 - En compras con tarjeta se muestran las advertencias de nivel 1 o 2 antes de guardar.
 - Pantalla inicial con saldo real, disponible, deuda de tarjetas y MSI por cargar (apartado, ahorros y sobrante como detalle); y cuánto pagar de cada tarjeta.
-- Al elegir plazo MSI se muestran primero 3, 6, 9 y 12 meses; se puede escribir cualquier plazo de 3 a 48.
+- Al elegir plazo MSI se muestran primero `Sin MSI` (elegido al llegar), 3, 6, 9 y 12 meses, con `←` `→`; debajo (`↓`) se puede escribir cualquier plazo de 3 a 48.
 
 **Fase 2 (después de la v1) · propuesta preliminar, se detallará más adelante**
 
@@ -434,8 +436,8 @@ Para retomar en una sesión nueva:
 **Jue 12 · Pantallas de saldos y tarjetas**
 
 - [x] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle) (2026-11-12: disponible y el detalle solo en modo ahorro; ahorros con meta se muestra aunque valga $0 hasta la v1)
-- [ ] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov)
-- [ ] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo, sin opción por defecto (pruebas manuales del 11 nov)
+- [x] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov; 2026-11-12, también el contable escrito a mano y "Otro plazo")
+- [x] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo (pruebas manuales del 11 nov; 2026-11-12, empieza en `Sin MSI`)
 - [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)
 - [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
 - [ ] Diseño responsivo y prueba en el celular por la red local

@@ -18,7 +18,6 @@ import type {
 } from '../api/types'
 import { formatShortDate, todayInMexico } from '../lib/dates'
 import { formatMoney, isMoney, parseAmountInput } from '../lib/money'
-import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { ErrorState, LoadingState } from '../ui/Section'
 
 export type CaptureType = 'expense' | 'income' | 'transfer' | 'card_payment'
@@ -34,13 +33,17 @@ const tabs: { type: CaptureType; label: string }[] = [
 const SPENDING = new Set<Account['type']>(['debit', 'cash', 'credit'])
 const MONEY_SOURCES = new Set<Account['type']>(['debit', 'cash'])
 
-// MSI terms shown first (docs/PLANEACION.md); any term from 3 to 48 can be typed
-const COMMON_MONTHS = [3, 6, 9, 12]
+// MSI terms shown first (docs/PLANEACION.md); any term from 3 to 48 can be typed below them.
+// '' is "Sin MSI", the one chosen when the field is reached
+const MONTH_OPTIONS = [
+  { value: '', label: 'Sin MSI' },
+  { value: '3', label: '3' },
+  { value: '6', label: '6' },
+  { value: '9', label: '9' },
+  { value: '12', label: '12' },
+]
 const MIN_MONTHS = 3
 const MAX_MONTHS = 48
-
-// Wait for the typing to pause before asking the API for the preview
-const PREVIEW_DELAY_MS = 300
 
 const LAST_ACCOUNT_KEY = 'capture.lastAccountId'
 
@@ -89,6 +92,42 @@ function parseMonths(text: string): number | null {
   return /^\d+$/.test(value) && Number(value) >= MIN_MONTHS && Number(value) <= MAX_MONTHS
     ? Number(value)
     : Number.NaN
+}
+
+interface PreviewContext {
+  sourceId: string
+  type: CaptureType
+  savingsMode: boolean
+  cardExpense: boolean
+  // The commitment chosen in the list, if the list is shown
+  commitmentId: string | null
+}
+
+/** What to ask the preview for, from the typed texts; null when there's nothing to ask. */
+function previewRequest(
+  context: PreviewContext,
+  amountText: string,
+  accountingText: string | null,
+  monthsText: string,
+): MovementPreviewRequest | null {
+  const isTransfer = context.type === 'transfer' || context.type === 'card_payment'
+  const amount = parseAmountInput(amountText)
+  // Savings mode needs the suggestion; card expenses, the warnings. Transfers need neither
+  if (amount === null || isTransfer || !context.sourceId) return null
+  if (!context.savingsMode && !context.cardExpense) return null
+  const months = context.cardExpense ? parseMonths(monthsText) : null
+  const installments = months !== null && !Number.isNaN(months)
+  return {
+    account_id: context.sourceId,
+    type: context.type === 'income' ? 'income' : 'expense',
+    amount,
+    accounting_amount:
+      context.savingsMode && !installments && accountingText !== null
+        ? parseAmountInput(accountingText)
+        : null,
+    commitment_id: installments ? null : context.commitmentId,
+    months: installments ? months : null,
+  }
 }
 
 function money(amount: string): string {
@@ -194,15 +233,24 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const [accountingText, setAccountingText] = useState<string | null>(null)
   const [chosenSource, setChosenSource] = useState<string | null>(readLastAccount)
   const [chosenDestination, setChosenDestination] = useState<string | null>(null)
+  // The chosen MSI term ('' = Sin MSI); a typed "other term" lands here when it's complete
   const [monthsText, setMonthsText] = useState('')
+  const [otherMonthsText, setOtherMonthsText] = useState('')
+  // What the preview was asked for: the typed texts once they're complete (Enter or leaving
+  // the field), not on every key
+  const [committedAmountText, setCommittedAmountText] = useState('')
+  const [committedAccountingText, setCommittedAccountingText] = useState<string | null>(null)
   const [categoryId, setCategoryId] = useState('')
   const [commitmentId, setCommitmentId] = useState('')
   const [occurredOn, setOccurredOn] = useState(todayInMexico)
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  // Ctrl+Enter with fields left to review: what they hold, and where Esc goes back to
-  const [unreviewed, setUnreviewed] = useState<{ items: string[]; returnTo: FieldKey } | null>(null)
+  // Ctrl+Enter with fields left to review: which ones (their values are read on render, so
+  // the suggested accounting shows up once the preview answers), and where Esc goes back to
+  const [unreviewed, setUnreviewed] = useState<{ keys: FieldKey[]; returnTo: FieldKey } | null>(
+    null,
+  )
   // Level 2 warning: the preview it was shown for; saving that same one again goes ahead
   const [overRealShownFor, setOverRealShownFor] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -220,7 +268,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const savingsMode = preferences.data?.mode === 'savings'
   const isTransfer = type === 'transfer' || type === 'card_payment'
   const cardExpense = type === 'expense' && source?.type === 'credit'
-  const months = cardExpense ? parseMonths(monthsText) : null
+  // While an "other term" is typed it counts already, so saving right away uses it
+  const liveMonthsText = otherMonthsText.trim() !== '' ? otherMonthsText : monthsText
+  const months = cardExpense ? parseMonths(liveMonthsText) : null
   const isInstallments = months !== null && !Number.isNaN(months)
   const pendingCommitments = (commitments.data ?? []).filter((c) => c.paid_by_movement_id === null)
   const showAccounting = savingsMode && !isTransfer && !isInstallments
@@ -233,25 +283,29 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     showAccounting && accountingText !== null ? parseAmountInput(accountingText) : null
   const sentCommitment = showCommitment && commitmentId ? commitmentId : null
 
-  // Savings mode needs the suggestion; card expenses, the warnings. Transfers need neither
-  const previewBody: MovementPreviewRequest | null =
-    amount !== null && !isTransfer && sourceId && (savingsMode || cardExpense)
-      ? {
-          account_id: sourceId,
-          type: type === 'income' ? 'income' : 'expense',
-          amount,
-          accounting_amount: typedAccounting,
-          commitment_id: sentCommitment,
-          months: isInstallments ? months : null,
-        }
-      : null
+  const context: PreviewContext = {
+    sourceId,
+    type,
+    savingsMode,
+    cardExpense,
+    commitmentId: showCommitment && commitmentId ? commitmentId : null,
+  }
+  // Exactly what's on screen: what saving checks
+  const previewBody = previewRequest(context, amountText, accountingText, liveMonthsText)
   const previewKey = previewBody && JSON.stringify(previewBody)
-  const debouncedKey = useDebouncedValue(previewKey, PREVIEW_DELAY_MS)
-  const preview = usePreview(
-    debouncedKey === previewKey && previewBody !== null ? previewBody : null,
+  // What the preview is asked for: the completed texts. Lists and buttons count right away
+  const committedBody = previewRequest(
+    context,
+    committedAmountText,
+    committedAccountingText,
+    monthsText,
   )
-  // Only what belongs to the current values: a reply for an older amount isn't shown
-  const current = debouncedKey === previewKey ? preview.data : undefined
+  const preview = usePreview(committedBody)
+  // Only what belongs to the current values: a reply for an amount being changed isn't shown
+  const current =
+    committedBody !== null && JSON.stringify(committedBody) === previewKey
+      ? preview.data
+      : undefined
   const suggestion = current?.suggested_accounting_amount ?? null
   const accountingValue = accountingText ?? suggestion ?? ''
 
@@ -296,7 +350,34 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   ]
 
   function focusField(key: FieldKey) {
-    formRef.current?.querySelector<HTMLElement>(`[data-field="${key}"]`)?.focus()
+    // Skipping tabindex -1: in a group like the MSI buttons, the chosen one gets the focus
+    formRef.current
+      ?.querySelector<HTMLElement>(`[data-field="${key}"]:not([tabindex="-1"])`)
+      ?.focus()
+  }
+
+  function focusOtherMonths() {
+    formRef.current?.querySelector<HTMLElement>('[data-months-other]')?.focus()
+  }
+
+  function focusMonthsOption(value: string) {
+    formRef.current?.querySelector<HTMLElement>(`[data-months-option="${value}"]`)?.focus()
+  }
+
+  // The preview is asked for once a text is complete: Enter, Ctrl+Enter or leaving the field
+  function commitOtherMonths() {
+    if (otherMonthsText.trim() !== '') setMonthsText(otherMonthsText)
+  }
+
+  function commitTexts() {
+    setCommittedAmountText(amountText)
+    setCommittedAccountingText(accountingText)
+    commitOtherMonths()
+  }
+
+  function chooseMonths(value: string) {
+    setMonthsText(value)
+    setOtherMonthsText('')
   }
 
   function chooseType(next: CaptureType) {
@@ -313,6 +394,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     setChosenSource(readLastAccount())
     setChosenDestination(null)
     setMonthsText('')
+    setOtherMonthsText('')
+    setCommittedAmountText('')
+    setCommittedAccountingText(null)
     setCategoryId('')
     setCommitmentId('')
     setOccurredOn(todayInMexico())
@@ -331,17 +415,20 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     }
   }
 
+  const monthsError = `Los meses sin intereses van de ${String(MIN_MONTHS)} a ${String(MAX_MONTHS)}.`
+
   async function save() {
     setSaved(false)
     setUnreviewed(null)
+    commitTexts()
     if (amount === null) {
       setError('Escribe un monto mayor a 0, con hasta 2 decimales.')
       focusField('amount')
       return
     }
     if (months !== null && Number.isNaN(months)) {
-      setError(`Los meses sin intereses van de ${String(MIN_MONTHS)} a ${String(MAX_MONTHS)}.`)
-      focusField('months')
+      setError(monthsError)
+      focusOtherMonths()
       return
     }
     if (showAccounting && accountingText !== null && accountingText.trim() !== '') {
@@ -437,8 +524,32 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       tabRefs.current.get(next)?.focus()
       return
     }
+    // MSI buttons: ← → choose like the type tabs (no wrapping), ↓ goes to "other term"
+    const option = target.dataset.monthsOption
+    if (option !== undefined && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+      event.preventDefault()
+      const at = MONTH_OPTIONS.findIndex((item) => item.value === option)
+      const index = Math.min(Math.max(at + (event.key === 'ArrowRight' ? 1 : -1), 0), 4)
+      const next = MONTH_OPTIONS[index].value
+      chooseMonths(next)
+      focusMonthsOption(next)
+      return
+    }
+    if (option !== undefined && event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusOtherMonths()
+      return
+    }
+    const inOtherMonths = target.dataset.monthsOther !== undefined
+    if (inOtherMonths && event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusField('months')
+      return
+    }
     if (event.key !== 'Enter') return
     event.preventDefault()
+    // Enter (or Ctrl+Enter) means the text is complete: ask the preview for it
+    commitTexts()
 
     const currentField = fieldOf(target)
     const position = fields.findIndex((field) => field.key === currentField)
@@ -446,13 +557,18 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     const ahead = tab !== -1 ? fields : position === -1 ? [] : fields.slice(position + 1)
 
     if (event.ctrlKey || event.metaKey) {
-      const items = ahead.flatMap((field) => (field.summary === null ? [] : [field.summary]))
+      const keys = ahead.flatMap((field) => (field.summary === null ? [] : [field.key]))
       // Without an amount, save() shows the error instead of the notice
-      if (items.length > 0 && amount !== null) {
-        setUnreviewed({ items, returnTo: currentField ?? 'amount' })
+      if (keys.length > 0 && amount !== null) {
+        setUnreviewed({ keys, returnTo: currentField ?? 'amount' })
       } else {
         void save()
       }
+      return
+    }
+    if (inOtherMonths && months !== null && Number.isNaN(months)) {
+      // An invalid term stays to be fixed; an empty one keeps the button chosen above
+      setError(monthsError)
       return
     }
     const next = ahead.at(0)
@@ -528,6 +644,10 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
             setAmountText(event.target.value)
             setSaved(false)
           }}
+          // Leaving the field (mouse, or a tap on the phone) completes the amount, like Enter
+          onBlur={() => {
+            setCommittedAmountText(amountText)
+          }}
           className={`${fieldClass} text-lg tabular-nums`}
         />
       </label>
@@ -544,6 +664,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
             value={accountingValue}
             onChange={(event) => {
               setAccountingText(event.target.value)
+            }}
+            onBlur={() => {
+              setCommittedAccountingText(accountingText)
             }}
             className={`${fieldClass} tabular-nums`}
           />
@@ -575,41 +698,58 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
 
       {cardExpense && (
         <div>
-          <label className={labelClass}>
+          <p id="months-label" className={labelClass}>
             Meses sin intereses
+          </p>
+          <div role="radiogroup" aria-labelledby="months-label" className="mt-1 flex gap-2">
+            {MONTH_OPTIONS.map((item) => {
+              // A typed "other term" leaves no button chosen
+              const chosen = otherMonthsText.trim() === '' && monthsText === item.value
+              // Roving focus, like the type tabs: Tab lands on the chosen one (or Sin MSI)
+              const focusable =
+                chosen ||
+                (item.value === '' && !MONTH_OPTIONS.some((other) => other.value === monthsText))
+              return (
+                <button
+                  key={item.value}
+                  data-field="months"
+                  data-months-option={item.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={chosen}
+                  tabIndex={focusable ? 0 : -1}
+                  onClick={() => {
+                    chooseMonths(item.value)
+                  }}
+                  className={`rounded-full px-3 py-1 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none ${
+                    chosen
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+          <label className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+            Otro plazo ({MIN_MONTHS} a {MAX_MONTHS})
             <input
               data-field="months"
+              data-months-other
               type="text"
               inputMode="numeric"
               autoComplete="off"
-              placeholder="Sin MSI"
-              value={monthsText}
+              value={otherMonthsText}
               onChange={(event) => {
-                setMonthsText(event.target.value)
+                setOtherMonthsText(event.target.value)
+                // Emptied: back to Sin MSI
+                if (event.target.value.trim() === '') setMonthsText('')
               }}
-              className={`${fieldClass} tabular-nums`}
+              onBlur={commitOtherMonths}
+              className="w-16 rounded-lg border-0 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500"
             />
           </label>
-          <div className="mt-2 flex gap-2">
-            {COMMON_MONTHS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                // For mouse and touch; the keyboard types the number
-                tabIndex={-1}
-                onClick={() => {
-                  setMonthsText(monthsText === String(value) ? '' : String(value))
-                }}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  monthsText === String(value)
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
           {isInstallments && current?.first_installment && (
             <p className="mt-2 text-xs text-slate-500">
               {months} mensualidades; la primera de {money(current.first_installment.amount)}
@@ -723,7 +863,9 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       {warning && <WarningMessage warning={warning} confirming={confirmingOverReal} />}
       {unreviewed && (
         <UnreviewedNotice
-          items={unreviewed.items}
+          items={fields.flatMap((field) =>
+            field.summary !== null && unreviewed.keys.includes(field.key) ? [field.summary] : [],
+          )}
           onSave={() => void save()}
           onCancel={cancelNotice}
         />

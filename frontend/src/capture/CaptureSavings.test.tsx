@@ -46,7 +46,7 @@ beforeEach(() => {
 })
 
 describe('Capture in savings mode', () => {
-  it('prefills the suggested accounting amount and sends it', async () => {
+  it('prefills the suggested accounting amount once the amount is complete, and sends it', async () => {
     const { mock } = stubApi({
       ...savingsRoutes,
       'POST /api/v1/movements/preview': previewReply({ suggested_accounting_amount: '390.00' }),
@@ -54,7 +54,13 @@ describe('Capture in savings mode', () => {
     })
     const panel = await openPanel()
 
+    // Not asked while typing: only with Enter (or leaving the field)
     await userEvent.keyboard('{Enter}387.56')
+    expect(await posted(mock, '/api/v1/movements/preview')).toEqual([])
+    await userEvent.keyboard('{Enter}')
+    expect(await posted(mock, '/api/v1/movements/preview')).toEqual([
+      expect.objectContaining({ amount: '387.56' }),
+    ])
 
     const accounting = within(panel).getByLabelText(/Contable/)
     expect(await within(panel).findByDisplayValue('390.00')).toBe(accounting)
@@ -73,7 +79,7 @@ describe('Capture in savings mode', () => {
     })
     const panel = await openPanel()
 
-    await userEvent.keyboard('{Enter}387.56')
+    await userEvent.keyboard('{Enter}387.56{Enter}')
     const accounting = within(panel).getByLabelText(/Contable/)
     await within(panel).findByDisplayValue('390.00')
     await userEvent.clear(accounting)
@@ -83,6 +89,19 @@ describe('Capture in savings mode', () => {
     expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
     const [body] = await posted(mock, '/api/v1/movements')
     expect(body).toMatchObject({ accounting_amount: '400' })
+  })
+
+  it('shows the suggested accounting in the Ctrl+Enter notice from the amount', async () => {
+    stubApi({
+      ...savingsRoutes,
+      'POST /api/v1/movements/preview': previewReply({ suggested_accounting_amount: '390.00' }),
+    })
+    const panel = await openPanel()
+
+    await userEvent.keyboard('{Enter}387.56{Control>}{Enter}{/Control}')
+
+    const notice = within(panel).getByRole('alertdialog')
+    expect(await within(notice).findByText(/Contable: \$390\.00/)).toBeVisible()
   })
 
   it('pays a commitment chosen in the list', async () => {
@@ -178,7 +197,7 @@ describe('Capture warnings and MSI', () => {
 
     await userEvent.keyboard('{Enter}1000')
     await userEvent.selectOptions(within(panel).getByLabelText('Cuenta'), 'TDC Oro')
-    await userEvent.click(within(panel).getByRole('button', { name: '3' }))
+    await userEvent.click(within(panel).getByRole('radio', { name: '3' }))
 
     expect(await within(panel).findByText(/la primera de \$333\.33/)).toBeVisible()
     await userEvent.click(within(panel).getByRole('button', { name: /Guardar/ }))
@@ -188,6 +207,38 @@ describe('Capture warnings and MSI', () => {
       expect.objectContaining({ account_id: 'tdc-oro', total: '1000', months: 3 }),
     ])
     expect(await posted(mock, '/api/v1/movements')).toEqual([])
+  })
+
+  it('picks the MSI term with the arrows, or types another one below', async () => {
+    const { mock } = stubApi({
+      ...homeRoutes,
+      'POST /api/v1/installment-plans': jsonResponse({}, 201),
+    })
+    const panel = await openPanel()
+    await userEvent.keyboard('{Enter}1000')
+    await userEvent.selectOptions(within(panel).getByLabelText('Cuenta'), 'TDC Oro')
+    await userEvent.keyboard('{Enter}')
+    expect(within(panel).getByRole('radio', { name: 'Sin MSI' })).toBeChecked()
+
+    // → twice: 6, and Enter goes on to Categoría
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    expect(within(panel).getByRole('radio', { name: '6' })).toHaveFocus()
+    expect(within(panel).getByRole('radio', { name: '6' })).toBeChecked()
+    await userEvent.keyboard('{Enter}')
+    expect(within(panel).getByLabelText('Categoría')).toHaveFocus()
+
+    // ↓ to "other term": 50 is out of range and stays; 18 is saved
+    await userEvent.click(within(panel).getByRole('radio', { name: '6' }))
+    await userEvent.keyboard('{ArrowDown}50{Enter}')
+    expect(within(panel).getByRole('alert')).toHaveTextContent('van de 3 a 48')
+    expect(within(panel).getByLabelText(/Otro plazo/)).toHaveFocus()
+    await userEvent.clear(within(panel).getByLabelText(/Otro plazo/))
+    await userEvent.keyboard('18{Control>}{Enter}{/Control}{Enter}')
+
+    expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
+    expect(await posted(mock, '/api/v1/installment-plans')).toEqual([
+      expect.objectContaining({ total: '1000', months: 18 }),
+    ])
   })
 
   it('shows the new row right away, marked as saving, before the API answers', async () => {
