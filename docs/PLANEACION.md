@@ -66,6 +66,10 @@
 | 2026-11-11 | Contable propuesto al capturar en modo ahorro: los gastos se redondean hacia arriba al múltiplo y los ingresos hacia abajo (387.56 → 390; 10,164.67 → 10,160); el usuario lo puede cambiar. Lo calcula `POST /movements/preview`, que también da la advertencia y no guarda nada, para que el frontend no haga cuentas con dinero. Si el gasto paga un apartado, se propone el mayor entre el real y el apartado, y el nivel 1 compara solo lo que pasa del apartado. |
 | 2026-11-11 | En modo simple, el contable de las mensualidades MSI es igual a su monto. Cuenta el modo al crear la compra; las compras existentes no se recalculan. |
 | 2026-11-11 | Flujo de teclado del panel de captura (se adelanta del diseño de la fase 2): `N` abre en Gasto con el foco en las pestañas; `←` `→` cambian el tipo sin dar la vuelta (0 veces = gasto, 1 = ingreso, 2 = transferencia, 3 = pago de tarjeta); `Enter` en las pestañas va al monto y en cada campo pasa al siguiente; `Enter` en el último campo guarda directo. `Ctrl+Enter` guarda en cualquier momento: si quedan campos después del actual (vacíos o con su valor por defecto), muestra un aviso ágil dentro del panel con esos valores (`Enter` guarda, `Esc` regresa al campo). Sin monto, marca el error. El botón Guardar guarda directo. Al guardar, el flujo se reinicia en Gasto con el foco en las pestañas, para que el número de `→` siempre signifique el mismo tipo. Las advertencias de nivel 1 y 2 van aparte: el nivel 2 sigue pidiendo "Guardar de todos modos". |
+| 2026-11-11 | En el panel, el contable propuesto (y la advertencia) se pide una sola vez, cuando el monto real está completo: al presionar `Enter` en el monto o al salir del campo (ratón o toque en móvil), no mientras se escribe. `Ctrl+Enter` desde el monto lo llena igual que un `Enter` antes de seguir con el guardado. Se implementa el día 12. |
+| 2026-11-11 | Por ahora todos los datos de la BD de desarrollo son de prueba: las pruebas manuales se comparan con el cálculo exacto de cada paso, no con estados de cuenta. El estado al cerrar la segunda ronda (`backups/budget-2026-11-11.dump`) es el nuevo punto de partida. |
+| 2026-11-11 | Selector de MSI con teclado: fila 1 con botones `Sin MSI`, 3, 6, 9 y 12 (`←` `→`, como las pestañas de tipo); fila 2 con un campo para otro plazo de 3 a 48 (`↓` baja, `↑` sube). Al llegar no hay nada elegido: `Enter` no avanza hasta elegir algo con `←`, `→` o `↓`; con una opción elegida, `Enter` pasa a Categoría. Se implementa el día 12. |
+| 2026-11-11 | Una compra con tarjeta de crédito nunca puede superar su crédito disponible (límite − deuda), ni con advertencia: no hay "Guardar de todos modos". En MSI se compara el total. Lo rechaza el backend (y `POST /movements/preview` lo avisa para que el panel no ofrezca guardar). Propuesta para el plan del día 12: aplica también al editar un gasto de tarjeta y al restaurar uno borrado. |
 
 ## Resumen
 
@@ -222,6 +226,8 @@ Si se cumplen ambas, solo se muestra el nivel 2. Aplica a cualquier compra con t
 **Por modo (2026-11-11):** el nivel 2 aplica siempre, también en modo simple, y el botón cambia a "Guardar de todos modos". El nivel 1 solo en modo ahorro, porque en modo simple no se muestra el disponible.
 
 **En MSI (2026-11-10):** nivel 1 si el contable de la primera mensualidad supera el disponible; nivel 2 si el total real supera el saldo real.
+
+**Límite de crédito (2026-11-11):** antes de las advertencias, una compra que supere el crédito disponible de la tarjeta se rechaza siempre; no es una advertencia y no se puede guardar.
 
 **Cuentas de ahorro con meta**
 
@@ -404,7 +410,7 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 
 - [x] Apartados, deuda de tarjetas y cuenta Sobrante en `domain/` con pruebas del invariante (2026-11-10; la fila de Sobrante en `/accounts` pasa a la v1)
 - [x] Regla de advertencias de nivel 1 y 2 con pruebas (2026-11-10; el endpoint llega el día 11)
-- [ ] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz (2026-11-10: pasa al día 11, junto con la sección 9 de `docs/PRUEBAS-MANUALES.md`)
+- [x] Probar con tus números reales: cine, despensa con tarjeta, quincena, luz (2026-11-10: pasa al día 11, junto con la sección 9 de `docs/PRUEBAS-MANUALES.md`; 2026-11-11: hecho con datos de prueba y cálculos exactos)
 - [x] Endpoints `/commitments`, `/preferences` y `/summary` con las siete cifras, más `POST /leftover-releases` para liberar sobrante (2026-11-10)
 
 - [x] Borrar y restaurar apartados, deshacer una liberación de sobrante y cambiar el apartado de un pago (2026-11-10)
@@ -412,22 +418,24 @@ Ocho días de trabajo y un día de respiro. Primero el dominio con pruebas, lueg
 **Mié 11 · Pruebas completas y captura convencional**
 
 - [x] Pruebas completas en la mañana: suites de backend y frontend, `alembic check`, `pre-commit run --all-files` y `docker compose up --build` desde cero (2026-11-11: 130 pruebas de backend y 28 de frontend en verde; la BD de desarrollo estaba vacía porque el volumen se recreó el 10 nov y se restauró el respaldo del 9)
-- [ ] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después); incluye la prueba con tus números reales del día 10
+- [x] Segunda ronda de pruebas manuales con modo ahorro (sección 9 de `docs/PRUEBAS-MANUALES.md`, con respaldo antes y después); incluye la prueba con tus números reales del día 10 (2026-11-11: los 13 pasos cuadraron con el cálculo exacto y el invariante se cumplió en cada uno; salen cuatro tareas para el día 12)
 - [x] Panel de nuevo movimiento con valores por defecto y `Enter` para guardar (2026-11-11: gasto, ingreso, transferencia y pago de tarjeta; tecla `N`, `Esc` y última cuenta usada)
 - [x] Campo de monto contable con redondeo propuesto en modo ahorro (2026-11-11, con `POST /movements/preview` y el selector de apartado)
 - [x] Guardado optimista con TanStack Query y advertencias de nivel 1 y 2 en compras con tarjeta (2026-11-11, incluidas las compras a MSI desde el panel)
 
-**Estado al cerrar la sesión del 2026-11-11:** la captura del día 11 está completa (commits `b9ea558`, `d32e447` y `d7993bc`; 137 pruebas de backend y 46 de frontend en verde). La BD de desarrollo se restauró del respaldo del 9 nov y se respaldó de nuevo antes de las pruebas (`backups/budget-2026-11-11-antes.dump`, 16:21). Falta la segunda ronda de pruebas manuales: el usuario la hace en la noche del 11 con la sección 9 de `docs/PRUEBAS-MANUALES.md` y anota los resultados en `docs/pruebas-manuales.local.md`.
+**Estado al cerrar la sesión del 2026-11-11:** la captura del día 11 está completa (commits `b9ea558`, `d32e447` y `d7993bc`; 137 pruebas de backend y 46 de frontend en verde) y la segunda ronda de pruebas manuales también: los 13 pasos de la sección 9 de `docs/PRUEBAS-MANUALES.md` cuadraron con el cálculo exacto y el invariante se cumplió en cada uno (solo faltó probar a mano el 409 al borrar un apartado pagado, que tiene prueba automática). Todos los datos de la BD son de prueba: no hay estados de cuenta reales que comparar. El estado al terminar es el nuevo punto de partida (`backups/budget-2026-11-11.dump`, 22:48), con modo ahorro activo, dos apartados pendientes (Luz y Agua) y una compra a 3 MSI; sus cifras están en `docs/pruebas-manuales.local.md`.
 
 Para retomar en una sesión nueva:
 
-1. Pedir al usuario las diferencias y fricciones de la segunda ronda (sin datos de su cuenta), corregir lo que haga falta antes del demo y marcar la casilla de las pruebas manuales (y la del día 10, "Probar con tus números reales").
-2. Confirmar que se sacó `backups/budget-2026-11-11.dump` al terminar las pruebas.
-3. Seguir con el jueves 12. Quedan fuera del día 11 y se evalúan con el día 12: editar y borrar desde la lista de movimientos, pantalla de apartados y liberar sobrante desde la interfaz (por ahora en Swagger).
+1. Proponer el plan del jueves 12 con las cuatro tareas que salieron de las pruebas (disponible y apartados en pantalla, contable propuesto al terminar el monto, selector de MSI con flechas y límite de crédito) y confirmar si el bloqueo por límite aplica también al editar y al restaurar.
+2. Evaluar también con el día 12: editar y borrar desde la lista de movimientos, pantalla de apartados y liberar sobrante desde la interfaz (por ahora en Swagger).
 
 **Jue 12 · Pantallas de saldos y tarjetas**
 
 - [ ] Inicio con saldo real, disponible, deuda y MSI por cargar (apartado, ahorros y sobrante como detalle)
+- [ ] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov)
+- [ ] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo, sin opción por defecto (pruebas manuales del 11 nov)
+- [ ] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov)
 - [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
 - [ ] Diseño responsivo y prueba en el celular por la red local
 

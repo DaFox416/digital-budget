@@ -119,7 +119,9 @@ Anota lo que fue tedioso, lento o confuso. Sirve para diseñar el formulario del
 
 ## 9. Segunda ronda (mié 11 nov): sistema completo y modo ahorro
 
-Se hace sobre la base que ya tiene tus datos reales. **No uses `docker compose down -v`.**
+Se hace sobre la base que ya tiene tus datos. **No uses `docker compose down -v`.**
+
+> **2026-11-11:** hecha con datos de prueba (no hay datos reales todavía), comparando cada paso con el cálculo exacto en lugar del estado de cuenta: los pasos 2 y 4 no aplican y la limpieza del paso 5 es opcional. Todos los pasos cuadraron.
 
 **Antes de empezar (también si es una sesión nueva):**
 
