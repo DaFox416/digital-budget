@@ -50,6 +50,9 @@ def preview_movement(
     Warnings only apply to credit card expenses: level 2 (`over_real_balance`) in every mode,
     level 1 (`over_available`) only in savings mode. With `months`, it's an MSI purchase:
     level 1 compares its first installment and level 2 its total.
+
+    `credit_limit_excess` says how much a card purchase (an MSI total) goes over the card's
+    available credit: it can't be saved, so no warning is given then.
     """
     preview = movements_service.preview_movement(session, user_id, data)
     first = preview.first_installment
@@ -64,6 +67,7 @@ def preview_movement(
         warning=(
             PurchaseWarningRead(level=warning.level, excess=warning.excess) if warning else None
         ),
+        credit_limit_excess=preview.credit_limit_excess,
     )
 
 
@@ -96,7 +100,8 @@ def delete_movement(
 def restore_movement(
     movement_id: uuid.UUID, session: SessionDep, user_id: CurrentUserId
 ) -> MovementRead:
-    """Undo a delete, including the other leg of a transfer. 409 if it isn't deleted."""
+    """Undo a delete, including the other leg of a transfer. 409 if it isn't deleted, or if
+    restoring a card purchase would go over the card's available credit."""
     movement = movements_service.restore_movement(session, user_id, movement_id)
     return MovementRead.model_validate(movement)
 

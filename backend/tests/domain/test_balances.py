@@ -1,6 +1,9 @@
 from decimal import Decimal
 
-from app.domain.balances import account_balance, credit_debt
+import pytest
+
+from app.domain.balances import account_balance, check_credit_limit, credit_debt
+from app.domain.errors import CreditLimitExceededError
 
 
 def test_balance_adds_signed_movements() -> None:
@@ -22,3 +25,11 @@ def test_credit_card_balance_is_negative_when_there_is_debt() -> None:
 
     assert balance == Decimal("-1834.50")
     assert credit_debt(balance) == Decimal("1834.50")
+
+
+def test_purchase_can_use_all_the_available_credit_but_not_a_cent_more() -> None:
+    check_credit_limit(Decimal("1500.00"), Decimal("1500.00"))
+
+    with pytest.raises(CreditLimitExceededError) as error:
+        check_credit_limit(Decimal("1500.01"), Decimal("1500.00"))
+    assert error.value.excess == Decimal("0.01")

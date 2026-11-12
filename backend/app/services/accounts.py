@@ -63,6 +63,15 @@ def _with_balance(account: Account, balance: Decimal, on: date) -> AccountWithBa
     return AccountWithBalance(account, balance, credit)
 
 
+def current_credit_available(session: Session, user_id: uuid.UUID, account: Account) -> Decimal:
+    """The card's available credit (limit - debt) with its non-deleted movements right now."""
+    # Credit accounts always have one (it's required when they're created)
+    assert account.credit_config is not None
+    movements_total = accounts_repo.movements_total(session, user_id, account.id)
+    balance = account_balance(account.initial_balance, [movements_total])
+    return credit_available(account.credit_config.credit_limit, balance)
+
+
 def list_accounts(session: Session, user_id: uuid.UUID) -> list[AccountWithBalance]:
     on = today()
     return [

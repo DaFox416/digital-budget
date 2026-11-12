@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.domain.balances import check_credit_limit
 from app.domain.enums import MovementType, SavingsMode
 from app.domain.installments import installment_schedule, validate_installment_account
 from app.domain.money import to_money
@@ -12,7 +13,7 @@ from app.repositories import accounts as accounts_repo
 from app.repositories import categories as categories_repo
 from app.schemas.installments import InstallmentPlanCreate
 from app.services import savings as savings_service
-from app.services.accounts import cycle_config
+from app.services.accounts import current_credit_available, cycle_config
 from app.services.clock import today
 from app.services.errors import NotFoundError
 
@@ -35,6 +36,8 @@ def create_plan(
 
     purchased_on = data.purchased_on or today()
     total = to_money(data.total)
+    # The whole total uses the card's credit today
+    check_credit_limit(total, current_credit_available(session, user_id, account))
     schedule = installment_schedule(
         total, data.months, purchased_on, cycle_config(account.credit_config)
     )

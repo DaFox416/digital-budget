@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.domain.balances import check_credit_limit, credit_limit_excess
 from app.domain.enums import AccountType, MovementType, SavingsMode
 from app.domain.errors import InvalidMovementError
 from app.domain.installments import split_installments, validate_installment_account
@@ -37,6 +38,7 @@ from app.schemas.movements import (
     TransferCreate,
 )
 from app.services import savings as savings_service
+from app.services.accounts import current_credit_available
 from app.services.clock import today
 from app.services.errors import ConflictError, NotFoundError
 
@@ -67,6 +69,22 @@ class MovementPreview:
     suggested_accounting_amount: Decimal | None
     first_installment: InstallmentPreview | None
     warning: PurchaseWarning | None
+    # Card purchases only: how much it goes over the card's available credit. Can't be saved,
+    # so there is no warning when it's set
+    credit_limit_excess: Decimal | None
+
+
+# Restoring can't be fixed automatically: only the user knows which later purchases are real
+RESTORE_OVER_LIMIT = (
+    "Restoring this purchase would go over the card's available credit by ${excess:,.2f}. "
+    "To fix it by hand: 1) delete the later purchases on this card that shouldn't have been "
+    "accepted, 2) restore this one, 3) record again the purchases that did happen."
+)
+
+
+def _is_card_purchase(account: Account, movement_type: MovementType) -> bool:
+    """Only purchases are limited; card payments and refunds aren't (docs/PLANEACION.md)."""
+    return account.type is AccountType.CREDIT and movement_type is MovementType.EXPENSE
 
 
 def list_movements(
@@ -90,6 +108,9 @@ def create_movement(session: Session, user_id: uuid.UUID, data: MovementCreate) 
             accounting_amount = commitment_payment_accounting(data.amount, commitment.amount)
 
     amounts = signed_amounts(data.type, account.type, data.amount, accounting_amount)
+    if _is_card_purchase(account, data.type):
+        available = current_credit_available(session, user_id, account)
+        check_credit_limit(-amounts.real_amount, available)
 
     movement = Movement(
         user_id=user_id,
@@ -225,6 +246,12 @@ def _update_expense_or_income(
         data.amount,
         accounting_amount,
     )
+    # Real amounts are negative in expenses: a lower one is a bigger purchase. Lowering a
+    # purchase is always allowed, even if the card is already over its limit
+    if _is_card_purchase(account, movement.type) and amounts.real_amount < movement.real_amount:
+        # The current amount is already in the debt, so it counts as available
+        available = current_credit_available(session, user_id, account) - movement.real_amount
+        check_credit_limit(-amounts.real_amount, available)
     movement.real_amount = amounts.real_amount
     movement.accounting_amount = amounts.accounting_amount
     movement.commitment_id = commitment_id
@@ -292,6 +319,13 @@ def restore_movement(session: Session, user_id: uuid.UUID, movement_id: uuid.UUI
             raise ConflictError("Its commitment was deleted; restore the commitment first")
         if savings_repo.payment_id(session, user_id, movement.commitment_id) is not None:
             raise ConflictError("Another expense already paid its commitment")
+    if movement.transfer_group_id is None:
+        account = _get_account(session, user_id, movement.account_id)
+        if _is_card_purchase(account, movement.type):
+            available = current_credit_available(session, user_id, account)
+            excess = credit_limit_excess(-movement.real_amount, available)
+            if excess is not None:
+                raise ConflictError(RESTORE_OVER_LIMIT.format(excess=excess))
 
     for item in _with_transfer_legs(session, user_id, movement, include_deleted=True):
         item.deleted_at = None
@@ -332,11 +366,17 @@ def preview_movement(
         validate_installment_account(account.type)
         first = split_installments(data.amount, data.months)[0]
         first_accounting = installment_accounting(first, multiple) if savings_mode else first
-        figures = savings_service.current_figures(session, user_id, today()).figures
-        warning = installment_purchase_warning(
-            first_accounting, data.amount, figures.available, figures.real_balance, savings_mode
+        # The whole total uses the card's credit today
+        excess = credit_limit_excess(
+            data.amount, current_credit_available(session, user_id, account)
         )
-        return MovementPreview(None, InstallmentPreview(first, first_accounting), warning)
+        warning = None
+        if excess is None:
+            figures = savings_service.current_figures(session, user_id, today()).figures
+            warning = installment_purchase_warning(
+                first_accounting, data.amount, figures.available, figures.real_balance, savings_mode
+            )
+        return MovementPreview(None, InstallmentPreview(first, first_accounting), warning, excess)
 
     commitment = None
     if data.commitment_id is not None:
@@ -356,7 +396,12 @@ def preview_movement(
     signed_amounts(data.type, account.type, data.amount, accounting)
 
     warning = None
-    if account.type is AccountType.CREDIT and data.type is MovementType.EXPENSE:
+    excess = None
+    if _is_card_purchase(account, data.type):
+        excess = credit_limit_excess(
+            data.amount, current_credit_available(session, user_id, account)
+        )
+    if excess is None and _is_card_purchase(account, data.type):
         figures = savings_service.current_figures(session, user_id, today()).figures
         warning = purchase_warning(
             cost_to_available(accounting, commitment.amount if commitment else None),
@@ -365,4 +410,4 @@ def preview_movement(
             figures.real_balance,
             savings_mode,
         )
-    return MovementPreview(accounting, None, warning)
+    return MovementPreview(accounting, None, warning, excess)

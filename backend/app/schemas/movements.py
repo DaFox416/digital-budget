@@ -117,3 +117,6 @@ class MovementPreviewRead(BaseModel):
     first_installment: InstallmentPreviewRead | None
     # Credit card expenses only
     warning: PurchaseWarningRead | None
+    # Credit card expenses only: how much it goes over the card's available credit. Such a
+    # purchase can't be saved (422), so `warning` is null when this is set
+    credit_limit_excess: Money | None

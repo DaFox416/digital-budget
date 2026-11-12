@@ -40,6 +40,7 @@ def test_savings_mode_suggests_rounding_and_warns_over_available(client: TestCli
         "suggested_accounting_amount": "390.00",
         "first_installment": None,
         "warning": {"level": "over_available", "excess": "90.00"},
+        "credit_limit_excess": None,
     }
     # Paying the Luz commitment only takes 187.56 from "available"
     paying = preview(client, card, "387.56", commitment_id=luz["id"])
@@ -58,6 +59,7 @@ def test_simple_mode_only_warns_over_the_real_balance(client: TestClient) -> Non
         "suggested_accounting_amount": "400.00",
         "first_installment": None,
         "warning": None,
+        "credit_limit_excess": None,
     }
     over = preview(client, card, "600")
     assert over["warning"] == {"level": "over_real_balance", "excess": "100.00"}
@@ -72,6 +74,7 @@ def test_msi_preview_shows_the_rounded_first_installment(client: TestClient) -> 
         "suggested_accounting_amount": None,
         "first_installment": {"amount": "333.33", "accounting_amount": "340.00"},
         "warning": {"level": "over_real_balance", "excess": "500.00"},
+        "credit_limit_excess": None,
     }
 
 
