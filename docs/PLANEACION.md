@@ -74,6 +74,8 @@
 | 2026-11-12 | Selector de MSI: al llegar ya está elegido `Sin MSI` (cambia la decisión del 11 nov de empezar sin nada elegido), así que `Enter` avanza directo a Categoría. `←` `→` eligen entre `Sin MSI`, 3, 6, 9 y 12 sin dar la vuelta; `↓` baja al campo "Otro plazo" (3 a 48) y `↑` regresa. Un plazo inválido marca el error y `Enter` no avanza; vaciar el campo regresa a `Sin MSI`. |
 | 2026-11-12 | El preview se pide con los textos completos: el monto, el contable escrito a mano y "Otro plazo" se confirman con `Enter`, `Ctrl+Enter` o al salir del campo; las listas y los botones cuentan al instante. Se quita la espera de 300 ms tras cada tecla. Mientras se cambia un texto ya confirmado, no se muestra la sugerencia anterior. Guardar siempre revisa lo que está escrito en ese momento. |
 | 2026-11-12 | En móvil, un botón `+` fijo abajo a la derecha abre la captura (se adelanta de la captura táctil de la fase 2) y el botón "Nuevo" del encabezado queda solo desde `sm`. En móvil los campos del panel usan 16 px de letra, porque iOS hace zoom al enfocar campos con menos. Revisado en Chrome con emulación de 375 px antes de probar en el celular. |
+| 2026-11-12 | Pantalla de tarjeta como panel (mismo contenedor que la captura: pantalla completa en móvil, lateral en escritorio), no como página: el router y la navegación Movimientos/Cuentas/Tarjetas se deciden en la v1. Se abre tocando una tarjeta de crédito en Cuentas o con su botón "Ver detalle". Muestra deuda y crédito disponible, por pagar con días para vencer, el desglose del estado de cuenta de ese corte y los MSI activos. |
+| 2026-11-12 | `/summary` da `days_until_due` en el próximo pago de cada tarjeta (0 el día límite; nunca negativo, porque pasada la fecha se muestra el ciclo abierto). `GET /cards/{id}/installment-plans` lista las compras a MSI con mensualidades por facturar: facturadas, lo que falta y el siguiente corte. Una mensualidad se cuenta como facturada cuando su corte ya pasó; el día de corte el ciclo sigue abierto (regla 4). Las compras borradas no aparecen. |
 
 ## Resumen
 
@@ -350,6 +352,7 @@ digital-budget/
 | `PATCH/DELETE /movements/{id}` | Editar o eliminar (borrado lógico) |
 | `POST /installment-plans` | Crear compra a MSI y sus mensualidades |
 | `GET /cards/{id}/statement?cycle=` | Resumen del ciclo: cargos, MSI, pagado, por pagar, fechas |
+| `GET /cards/{id}/installment-plans` | Compras a MSI con mensualidades por facturar y su avance |
 | `GET/POST/PATCH /commitments` | Apartados del modo ahorro |
 | `DELETE /commitments/{id}`, `POST /commitments/{id}/restore` | Borrar un apartado pendiente (borrado lógico) y deshacerlo |
 | `GET /summary` | Las siete cifras del modo ahorro y próximos pagos |
@@ -440,8 +443,15 @@ Para retomar en una sesión nueva:
 - [x] Contable propuesto al presionar `Enter` en el monto, al salir del campo o con `Ctrl+Enter`, no en cada tecla (pruebas manuales del 11 nov; 2026-11-12, también el contable escrito a mano y "Otro plazo")
 - [x] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo (pruebas manuales del 11 nov; 2026-11-12, empieza en `Sin MSI`)
 - [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)
-- [ ] Pantalla de tarjeta: por pagar, días para vencer, MSI activos
+- [x] Pantalla de tarjeta: por pagar, días para vencer, MSI activos (2026-11-12, como panel)
 - [ ] Diseño responsivo y prueba en el celular por la red local (2026-11-12: diseño hecho y revisado en Chrome a 375 px; falta la prueba en el celular)
+
+**Estado al cerrar la sesión del 2026-11-12:** las seis tareas del día 12 están hechas salvo la prueba en el celular, que se hace en la sesión de pruebas del 13 (la app ya responde en la red local, `http://<IP de la PC>:5173`). 145 pruebas de backend y 52 de frontend en verde. El panel de captura y el de tarjeta se revisaron en Chrome con emulación de 375 px.
+
+Para retomar en una sesión nueva:
+
+1. Sesión de pruebas en el celular: abrir la app por la red local, capturar con el teclado numérico, MSI con toques, límite de crédito, panel de tarjeta, sin zoom al enfocar campos. Si no carga, revisar el firewall de Windows (regla para el puerto 5173 en redes privadas).
+2. Después, las tareas del día 13 (datos semilla, README y video).
 
 **Vie 13 · Demo**
 
