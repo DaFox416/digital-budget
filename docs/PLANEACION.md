@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-12
+Última actualización: 2026-11-14
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -76,10 +76,13 @@
 | 2026-11-12 | En móvil, un botón `+` fijo abajo a la derecha abre la captura (se adelanta de la captura táctil de la fase 2) y el botón "Nuevo" del encabezado queda solo desde `sm`. En móvil los campos del panel usan 16 px de letra, porque iOS hace zoom al enfocar campos con menos. Revisado en Chrome con emulación de 375 px antes de probar en el celular. |
 | 2026-11-12 | Pantalla de tarjeta como panel (mismo contenedor que la captura: pantalla completa en móvil, lateral en escritorio), no como página: el router y la navegación Movimientos/Cuentas/Tarjetas se deciden en la v1. Se abre tocando una tarjeta de crédito en Cuentas o con su botón "Ver detalle". Muestra deuda y crédito disponible, por pagar con días para vencer, el desglose del estado de cuenta de ese corte y los MSI activos. |
 | 2026-11-12 | `/summary` da `days_until_due` en el próximo pago de cada tarjeta (0 el día límite; nunca negativo, porque pasada la fecha se muestra el ciclo abierto). `GET /cards/{id}/installment-plans` lista las compras a MSI con mensualidades por facturar: facturadas, lo que falta y el siguiente corte. Una mensualidad se cuenta como facturada cuando su corte ya pasó; el día de corte el ciclo sigue abierto (regla 4). Las compras borradas no aparecen. |
+| 2026-11-14 | Se quita el demo del 13 nov: era un hito personal y nadie lo iba a ver. La prueba en el celular se hace el 14; los datos semilla y el video pasan al README de portafolio de la v1. |
+| 2026-11-14 | Nueva fecha de la v1: **13 dic** (antes 4 dic). El usuario no trabaja del 16 al 23 nov; el 24 trabaja medio día y retoma completo el 25. Los domingos son de descanso. Quedan unos 17.5 días de trabajo, así que se recorta alcance en lugar de comprimir: búsqueda, etiquetas y editar en lote pasan a después de la v1. |
+| 2026-11-14 | Orden de la v1 en cuatro bloques: A) lo que falta para el uso diario (editar, borrar y deshacer desde la lista, apartados, liberar sobrante, PWA), para que el usuario use la app con sus datos reales desde el 27 nov; B) usuarios y CI; C) modo ahorro completo y tarjetas, con el arrastre de saldo no pagado como prioridad; D) calidad y lanzamiento. Si algo se atrasa se recorta primero el historial de Sobrante, después los apartados recurrentes y después adelantar o liquidar MSI. El arrastre de saldo, el login y las pruebas no se recortan. |
 
 ## Resumen
 
-Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en México (corte, fecha límite de pago y meses sin intereses) y que, en modo ahorro, distingue tu saldo real de tu dinero disponible. Demo funcional el 13 de noviembre; v1 lista para usuarios externos el 4 de diciembre.
+Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en México (corte, fecha límite de pago y meses sin intereses) y que, en modo ahorro, distingue tu saldo real de tu dinero disponible. v1 lista para usuarios externos el 13 de diciembre (2026-11-14: se quitó el demo del 13 de noviembre y la v1 se movió del 4 al 13 de diciembre).
 
 **Objetivos**
 
@@ -95,10 +98,10 @@ Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en M
 
 **Alcance**
 
-| | Demo (13 nov) | v1 (4 dic) |
+| | Hecho al 12 nov | v1 (13 dic) |
 | --- | --- | --- |
 | Cuentas | Débito, efectivo, crédito y la cuenta Sobrante | + cuentas de ahorro con meta, archivar, reordenar, colores |
-| Movimientos | Gasto, ingreso, transferencia, pago de tarjeta | + editar en lote, búsqueda, etiquetas |
+| Movimientos | Gasto, ingreso, transferencia, pago de tarjeta | + editar, borrar y deshacer desde la lista (búsqueda, etiquetas y editar en lote, después de la v1) |
 | Tarjetas de crédito | Corte, fecha de pago, saldo del ciclo | + pago para no generar intereses, alertas en la app |
 | MSI | Alta de compra y mensualidades por ciclo | + adelantar mensualidades, liquidar |
 | Modo ahorro | Monto real y contable, apartados, sobrante, advertencias de compra | + redondeo automático, apartados recurrentes |
@@ -453,42 +456,52 @@ Para retomar en una sesión nueva:
 1. Sesión de pruebas en el celular: abrir la app por la red local, capturar con el teclado numérico, MSI con toques, límite de crédito, panel de tarjeta, sin zoom al enfocar campos. Si no carga, revisar el firewall de Windows (regla para el puerto 5173 en redes privadas).
 2. Después, las tareas del día 13 (datos semilla, README y video).
 
-**Vie 13 · Demo**
+**Vie 13 · Demo** (2026-11-14: se quita; la prueba en el celular pasa al bloque A y los datos semilla y el video, al bloque D de la v1)
 
-- [ ] Datos semilla realistas (2 débito, 2 crédito, 1 MSI)
-- [ ] README con capturas y cómo levantarlo
-- [ ] Grabar un video corto del flujo completo
+## Plan a la v1 (14 nov – 13 dic)
 
-**Si algo se atrasa, se recorta en este orden:** apartados recurrentes, pantalla de tarjeta detallada. La lógica de ciclos, MSI, montos real/contable y advertencias no se recorta.
+Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de noviembre; el martes 24 trabaja medio día. Los domingos son de descanso. Quedan unos 17.5 días de trabajo; el domingo 13 de diciembre queda como colchón y día de lanzamiento.
 
-## Plan a la v1 (14 nov – 4 dic)
+**Bloque A · Uso diario · sáb 14, mar 24 (medio día), mié 25 y jue 26 nov**
 
-Tres semanas para pasar de demo personal a producto que otra persona pueda usar: usuarios, calidad y pulido. Cada semana cierra con algo que se puede mostrar.
+- [ ] Prueba en el celular por la red local (pendiente del día 12)
+- [ ] Editar, borrar y deshacer desde la lista de movimientos
+- [ ] Pantalla de apartados (crear, editar, borrar y pagar)
+- [ ] Liberar sobrante desde la interfaz (y deshacer)
+- [ ] PWA instalable con íconos y pantalla de inicio
+- [ ] Desde el vie 27, usar la app con tus datos reales en lugar del Excel y anotar fricciones
 
-**Semana 1 · 14–20 nov · Usuarios y seguridad**
+Antes de salir el 14, dejar un commit limpio: prueba en el celular y editar, borrar y deshacer desde la lista.
 
-- [ ] Registro y login con contraseñas en Argon2 y JWT en cookie httpOnly
+**Bloque B · Usuarios y CI · vie 27, sáb 28, lun 30 nov y mar 1 dic**
+
+- [ ] Registro y login con contraseñas en Argon2 y JWT en cookie httpOnly (la migración conserva los datos del usuario local)
 - [ ] Aislar todos los datos por `user_id` con pruebas que lo verifiquen
-- [ ] Pruebas de API con httpx para cada endpoint
 - [ ] GitHub Actions: lint, tipos y pruebas en cada push
 
-**Semana 2 · 21–27 nov · Experiencia de uso**
+**Bloque C · Modo ahorro completo y tarjetas · mié 2 al sáb 5 dic**
 
-- [ ] Modo ahorro completo: redondeo automático configurable, apartados recurrentes, historial de la cuenta Sobrante, cuentas de ahorro con meta (depositar y retirar)
+- [ ] Arrastre de saldo no pagado entre ciclos (límite de la regla 8) y saldo inicial de la tarjeta
+- [ ] Cuentas de ahorro con meta (depositar y retirar)
+- [ ] Adelantar o liquidar MSI
+- [ ] Apartados recurrentes
+- [ ] Historial de la cuenta Sobrante
 - [ ] Pruebas de punta a punta del modo ahorro con tarjetas y MSI
-- [ ] PWA instalable con íconos y pantalla de inicio
-- [ ] Editar movimientos, búsqueda, etiquetas; adelantar o liquidar MSI
-- [ ] Usar la app tú mismo toda la semana en lugar del Excel y anotar fricciones
 
-**Semana 3 · 28 nov – 4 dic · Calidad y lanzamiento**
+**Bloque D · Calidad y lanzamiento · lun 7 al sáb 12 dic**
 
 - [ ] Pruebas E2E con Playwright del flujo de captura en web y móvil
-- [ ] Corregir lo anotado en tu semana de uso
+- [ ] Corregir lo anotado en el uso real
 - [ ] Página de bienvenida con enlace de donación
+- [ ] Datos semilla realistas (2 débito, 2 crédito, 1 MSI) para capturas y video
 - [ ] README de portafolio: arquitectura, decisiones, capturas, video
 - [ ] Dejar documentado el paso a deploy en un servicio con plan gratuito
 
-**Después del 4 dic · Fase 2 de captura:** diseñar a detalle la barra de comandos en web y los gestos táctiles en móvil, partiendo de la propuesta preliminar de este documento y de lo que aprendas usando la captura convencional.
+**Si algo se atrasa, se recorta en este orden:** historial de Sobrante, apartados recurrentes, adelantar o liquidar MSI. El arrastre de saldo, el login y las pruebas no se recortan.
+
+**Después de la v1:** búsqueda, etiquetas y editar en lote (salen de la v1 el 2026-11-14).
+
+**Después de la v1 · Fase 2 de captura:** diseñar a detalle la barra de comandos en web y los gestos táctiles en móvil, partiendo de la propuesta preliminar de este documento y de lo que aprendas usando la captura convencional.
 
 ## Riesgos, decisiones abiertas y valor para el CV
 
