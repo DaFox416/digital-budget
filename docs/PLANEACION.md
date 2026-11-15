@@ -79,6 +79,8 @@
 | 2026-11-14 | Se quita el demo del 13 nov: era un hito personal y nadie lo iba a ver. La prueba en el celular se hace el 14; los datos semilla y el video pasan al README de portafolio de la v1. |
 | 2026-11-14 | Nueva fecha de la v1: **13 dic** (antes 4 dic). El usuario no trabaja del 16 al 23 nov; el 24 trabaja medio día y retoma completo el 25. Los domingos son de descanso. Quedan unos 17.5 días de trabajo, así que se recorta alcance en lugar de comprimir: búsqueda, etiquetas y editar en lote pasan a después de la v1. |
 | 2026-11-14 | Orden de la v1 en cuatro bloques: A) lo que falta para el uso diario (editar, borrar y deshacer desde la lista, apartados, liberar sobrante, PWA), para que el usuario use la app con sus datos reales desde el 27 nov; B) usuarios y CI; C) modo ahorro completo y tarjetas, con el arrastre de saldo no pagado como prioridad; D) calidad y lanzamiento. Si algo se atrasa se recorta primero el historial de Sobrante, después los apartados recurrentes y después adelantar o liquidar MSI. El arrastre de saldo, el login y las pruebas no se recortan. |
+| 2026-11-14 | Selector de MSI: "Otro plazo" deja de ser un campo de texto y pasa a una fila de botones que se desliza en horizontal, solo con los plazos enteros que faltan (4, 5, 7, 8, 10, 11 y 13 a 48); así no hay plazos inválidos que marcar. Cambia la decisión del 12 nov. `↓` desde la primera fila elige el último plazo usado abajo (4 al principio), `←` `→` eligen sin dar la vuelta y `↑` regresa a `Sin MSI` sin cambiar el plazo elegido. Se descartó una barra deslizante: 46 posiciones en el ancho de un celular son unos 7 px por mes, difícil de atinar con el dedo. |
+| 2026-11-14 | Desde el celular la app se abre por HTTP en la IP local, que no es un contexto seguro: el frontend no usa APIs que lo exijan (`crypto.randomUUID` rompía el guardado). El ID temporal del guardado optimista es un contador local, porque nunca se manda a la API. El service worker de la PWA también exige HTTPS, así que para probarla en el celular hará falta HTTPS local (se resuelve con la tarea de PWA del bloque A). |
 
 ## Resumen
 
@@ -268,7 +270,7 @@ La captura llega en dos fases: primero una convencional que funcione bien en web
 - En modo ahorro aparece un segundo campo, monto contable, ya precargado con el redondeo propuesto.
 - En compras con tarjeta se muestran las advertencias de nivel 1 o 2 antes de guardar.
 - Pantalla inicial con saldo real, disponible, deuda de tarjetas y MSI por cargar (apartado, ahorros y sobrante como detalle); y cuánto pagar de cada tarjeta.
-- Al elegir plazo MSI se muestran primero `Sin MSI` (elegido al llegar), 3, 6, 9 y 12 meses, con `←` `→`; debajo (`↓`) se puede escribir cualquier plazo de 3 a 48.
+- Al elegir plazo MSI se muestran primero `Sin MSI` (elegido al llegar), 3, 6, 9 y 12 meses, con `←` `→`; debajo (`↓`), una fila deslizable con los demás plazos de 3 a 48 (2026-11-14: botones en lugar de un campo de texto).
 
 **Fase 2 (después de la v1) · propuesta preliminar, se detallará más adelante**
 
@@ -447,7 +449,7 @@ Para retomar en una sesión nueva:
 - [x] Selector de MSI con flechas: `Sin MSI`, 3, 6, 9, 12 y una fila para otro plazo (pruebas manuales del 11 nov; 2026-11-12, empieza en `Sin MSI`)
 - [x] Rechazar compras con tarjeta que superen su crédito disponible, en el backend y en el panel (pruebas manuales del 11 nov; hecho el 2026-11-12, solo compras: pagos y devoluciones se revisan en la fase 2)
 - [x] Pantalla de tarjeta: por pagar, días para vencer, MSI activos (2026-11-12, como panel)
-- [ ] Diseño responsivo y prueba en el celular por la red local (2026-11-12: diseño hecho y revisado en Chrome a 375 px; falta la prueba en el celular)
+- [x] Diseño responsivo y prueba en el celular por la red local (2026-11-12: diseño hecho y revisado en Chrome a 375 px; 2026-11-14: probado en el celular, ver bloque A)
 
 **Estado al cerrar la sesión del 2026-11-12:** las seis tareas del día 12 están hechas salvo la prueba en el celular, que se hace en la sesión de pruebas del 13 (la app ya responde en la red local, `http://<IP de la PC>:5173`). 145 pruebas de backend y 52 de frontend en verde. El panel de captura y el de tarjeta se revisaron en Chrome con emulación de 375 px.
 
@@ -464,7 +466,7 @@ Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de novi
 
 **Bloque A · Uso diario · sáb 14, mar 24 (medio día), mié 25 y jue 26 nov**
 
-- [ ] Prueba en el celular por la red local (pendiente del día 12)
+- [x] Prueba en el celular por la red local (2026-11-14: carga y validaciones bien; se corrigieron el guardado, que fallaba por `crypto.randomUUID` sin HTTPS, y el contable que parecía llenarse al escribir el monto, y "Otro plazo" pasó a una fila de botones)
 - [ ] Editar, borrar y deshacer desde la lista de movimientos
 - [ ] Pantalla de apartados (crear, editar, borrar y pagar)
 - [ ] Liberar sobrante desde la interfaz (y deshacer)
