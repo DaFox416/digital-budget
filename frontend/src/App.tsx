@@ -1,12 +1,17 @@
 import { useCallback, useState } from 'react'
 
+import { useDeleteMovement } from './api/mutations'
 import { useAccounts, useHealth } from './api/queries'
+import type { Movement } from './api/types'
 import { CapturePanel } from './capture/CapturePanel'
 import { useNewShortcut } from './capture/useNewShortcut'
 import { AccountList } from './features/accounts/AccountList'
 import { CardDetail } from './features/cards/CardDetail'
+import { EditPanel } from './features/movements/EditPanel'
 import { MovementList } from './features/movements/MovementList'
+import { UndoToast } from './features/movements/UndoToast'
 import { SummaryFigures } from './features/summary/SummaryFigures'
+import type { MovementRow } from './lib/movements'
 import { Section } from './ui/Section'
 import { SidePanel } from './ui/SidePanel'
 
@@ -44,8 +49,26 @@ function App() {
   // The credit card whose detail is open
   const [openCard, setOpenCard] = useState<string | null>(null)
   const openCardName = useAccounts().data?.find((account) => account.id === openCard)?.name
+  // The movement open to edit or delete
+  const [editing, setEditing] = useState<MovementRow | null>(null)
+  // The last deleted movement, while its undo notice shows. `key` restarts the notice (and
+  // its timer) when another one is deleted
+  const [deleted, setDeleted] = useState<{ movement: Movement; key: number } | null>(null)
+  const deleteMovement = useDeleteMovement()
+  const closeUndo = useCallback(() => {
+    setDeleted(null)
+  }, [])
+  const noPanel = !capturing && openCard === null && editing === null
   // N doesn't open the capture on top of another panel
-  useNewShortcut(openCapture, !capturing && openCard === null)
+  useNewShortcut(openCapture, noPanel)
+
+  function handleDelete(movement: Movement) {
+    // No confirmation before: the notice offers to undo it
+    setEditing(null)
+    setDeleted((last) => ({ movement, key: (last?.key ?? 0) + 1 }))
+    deleteMovement.reset()
+    deleteMovement.mutate(movement)
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -78,14 +101,14 @@ function App() {
             <AccountList onOpenCard={setOpenCard} />
           </Section>
           <Section title="Movimientos">
-            <MovementList />
+            <MovementList onOpen={setEditing} />
           </Section>
         </div>
       </main>
 
       {/* Phones: a big + at the bottom right opens the capture (first step of phase 2's touch
           capture). Hidden while the panel is open, which fills the screen */}
-      {!capturing && openCard === null && (
+      {noPanel && (
         <button
           type="button"
           onClick={openCapture}
@@ -105,6 +128,26 @@ function App() {
         >
           <CardDetail accountId={openCard} />
         </SidePanel>
+      )}
+
+      {editing !== null && (
+        <EditPanel
+          row={editing}
+          onClose={() => {
+            setEditing(null)
+          }}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {deleted !== null && (
+        <UndoToast
+          key={deleted.key}
+          movement={deleted.movement}
+          deleting={deleteMovement.isPending}
+          deleteError={deleteMovement.error}
+          onClose={closeUndo}
+        />
       )}
 
       {capturing && (

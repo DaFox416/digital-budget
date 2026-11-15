@@ -1,5 +1,17 @@
 import type { Movement } from '../api/types'
 
+export const movementTypeLabel: Record<Movement['type'], string> = {
+  expense: 'Gasto',
+  income: 'Ingreso',
+  transfer: 'Transferencia',
+  card_payment: 'Pago de tarjeta',
+}
+
+/** "-387.56" -> "387.56": the amount as typed in a form, where the type gives the sign. */
+export function unsigned(amount: string): string {
+  return amount.startsWith('-') ? amount.slice(1) : amount
+}
+
 /** One row of the movement list: an expense or income, or both legs of a transfer. */
 export type MovementRow =
   | { kind: 'single'; key: string; occurredOn: string; movement: Movement }

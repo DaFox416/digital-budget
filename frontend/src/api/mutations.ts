@@ -3,7 +3,13 @@ import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@t
 import { todayInMexico } from '../lib/dates'
 import { api, unwrap } from './client'
 import { queryKeys, type MovementFilters } from './queries'
-import type { InstallmentPlanCreate, Movement, MovementCreate, TransferCreate } from './types'
+import type {
+  InstallmentPlanCreate,
+  Movement,
+  MovementCreate,
+  MovementUpdate,
+  TransferCreate,
+} from './types'
 
 /** Ids of rows shown before the API confirms them; the list marks them as "saving". */
 export const PENDING_PREFIX = 'pending-'
@@ -168,6 +174,76 @@ export function useCreateInstallmentPlan() {
     onError: (_error, _body, snapshot) => {
       restore(client, snapshot)
     },
+    onSettled: () => refreshAfterSaving(client),
+  })
+}
+
+export interface UpdateVariables {
+  // Either leg of a transfer edits both
+  id: string
+  body: MovementUpdate
+}
+
+/** Not optimistic: the panel waits for the API, which recomputes the accounting amount. */
+export function useUpdateMovement() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: UpdateVariables) =>
+      unwrap(
+        api.PATCH('/api/v1/movements/{movement_id}', {
+          params: { path: { movement_id: id } },
+          body,
+        }),
+      ),
+    onSettled: () => refreshAfterSaving(client),
+  })
+}
+
+/**
+ * Optimistic: the row (both legs of a transfer) leaves the lists right away and comes back
+ * if the API refuses.
+ */
+export function useDeleteMovement() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (movement: Movement) =>
+      unwrap(
+        api.DELETE('/api/v1/movements/{movement_id}', {
+          params: { path: { movement_id: movement.id } },
+        }),
+      ),
+    onMutate: async (movement) => {
+      await client.cancelQueries({ queryKey: ['movements'] })
+      const snapshot = client.getQueriesData<Movement[]>({ queryKey: ['movements'] })
+      const group = movement.transfer_group_id
+      for (const [key, list] of snapshot) {
+        if (!list) continue
+        client.setQueryData<Movement[]>(
+          key,
+          list.filter(
+            (row) => row.id !== movement.id && (group === null || row.transfer_group_id !== group),
+          ),
+        )
+      }
+      return snapshot
+    },
+    onError: (_error, _movement, snapshot) => {
+      restore(client, snapshot)
+    },
+    onSettled: () => refreshAfterSaving(client),
+  })
+}
+
+/** Undo a delete. A 409 means it can't come back as is (credit limit, its commitment). */
+export function useRestoreMovement() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      unwrap(
+        api.POST('/api/v1/movements/{movement_id}/restore', {
+          params: { path: { movement_id: id } },
+        }),
+      ),
     onSettled: () => refreshAfterSaving(client),
   })
 }

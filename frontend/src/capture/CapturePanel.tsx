@@ -18,6 +18,7 @@ import type {
 } from '../api/types'
 import { formatShortDate, todayInMexico } from '../lib/dates'
 import { formatMoney, isMoney, parseAmountInput } from '../lib/money'
+import { fieldBase, fieldClass, labelClass } from '../ui/form'
 import { ErrorState, LoadingState } from '../ui/Section'
 import { SidePanel } from '../ui/SidePanel'
 
@@ -159,12 +160,6 @@ function fieldOf(element: HTMLElement): FieldKey | null {
   const key = element.dataset.field
   return FIELD_KEYS.find((item) => item === key) ?? null
 }
-
-// text-base on phones: fields inherit the label's 14 px, and iOS zooms in on fields under 16 px
-const fieldBase =
-  'mt-1 block w-full rounded-lg border-0 bg-white px-3 py-2 text-slate-900 ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500'
-const fieldClass = `${fieldBase} text-base sm:text-sm`
-const labelClass = 'block text-sm font-medium text-slate-700'
 
 interface CapturePanelProps {
   onClose: () => void

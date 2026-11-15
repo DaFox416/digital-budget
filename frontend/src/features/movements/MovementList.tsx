@@ -1,21 +1,23 @@
 import { isPendingId } from '../../api/mutations'
 import { useAccounts, useCategories, useMovements } from '../../api/queries'
-import type { Movement } from '../../api/types'
 import { formatDay } from '../../lib/dates'
-import { groupByDay, groupTransfers, type MovementRow } from '../../lib/movements'
+import {
+  groupByDay,
+  groupTransfers,
+  movementTypeLabel as typeLabel,
+  type MovementRow,
+} from '../../lib/movements'
 import { Money } from '../../ui/Money'
 import { EmptyState, ErrorState, LoadingState } from '../../ui/Section'
 
 const MOVEMENT_LIMIT = 50
 
-const typeLabel: Record<Movement['type'], string> = {
-  expense: 'Gasto',
-  income: 'Ingreso',
-  transfer: 'Transferencia',
-  card_payment: 'Pago de tarjeta',
+interface MovementListProps {
+  // Tapping a row (or Enter on it) opens it to edit or delete
+  onOpen: (row: MovementRow) => void
 }
 
-export function MovementList() {
+export function MovementList({ onOpen }: MovementListProps) {
   const movements = useMovements({ limit: MOVEMENT_LIMIT })
   // Only for names: while they load, rows show without account or category
   const accounts = useAccounts()
@@ -38,21 +40,24 @@ export function MovementList() {
       {days.map((day) => (
         <section key={day.day} aria-label={formatDay(day.day)}>
           <h3 className="mb-1 text-xs font-medium text-slate-400">{formatDay(day.day)}</h3>
-          <ul className="divide-y divide-slate-100 rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
             {day.rows.map((row) => (
-              <li
-                key={row.key}
-                // Shown before the API confirms it (optimistic update)
-                aria-busy={isPendingId(row.key)}
-                className={`flex items-center justify-between gap-3 px-4 py-3 ${
-                  isPendingId(row.key) ? 'opacity-60' : ''
-                }`}
-              >
-                <RowText row={row} accountNames={accountNames} categoryNames={categoryNames} />
-                <div className="shrink-0 text-right">
-                  <RowAmount row={row} />
-                  {isPendingId(row.key) && <p className="text-xs text-slate-400">Guardando…</p>}
-                </div>
+              // Shown before the API confirms it (optimistic update); it can't be opened yet
+              <li key={row.key} aria-busy={isPendingId(row.key)}>
+                <button
+                  type="button"
+                  disabled={isPendingId(row.key)}
+                  onClick={() => {
+                    onOpen(row)
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 focus:ring-2 focus:ring-sky-500 focus:outline-none focus:ring-inset disabled:opacity-60 disabled:hover:bg-transparent"
+                >
+                  <RowText row={row} accountNames={accountNames} categoryNames={categoryNames} />
+                  <div className="shrink-0 text-right">
+                    <RowAmount row={row} />
+                    {isPendingId(row.key) && <p className="text-xs text-slate-400">Guardando…</p>}
+                  </div>
+                </button>
               </li>
             ))}
           </ul>
