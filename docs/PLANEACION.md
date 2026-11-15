@@ -81,6 +81,7 @@
 | 2026-11-14 | Orden de la v1 en cuatro bloques: A) lo que falta para el uso diario (editar, borrar y deshacer desde la lista, apartados, liberar sobrante, PWA), para que el usuario use la app con sus datos reales desde el 27 nov; B) usuarios y CI; C) modo ahorro completo y tarjetas, con el arrastre de saldo no pagado como prioridad; D) calidad y lanzamiento. Si algo se atrasa se recorta primero el historial de Sobrante, después los apartados recurrentes y después adelantar o liquidar MSI. El arrastre de saldo, el login y las pruebas no se recortan. |
 | 2026-11-14 | Selector de MSI: "Otro plazo" deja de ser un campo de texto y pasa a una fila de botones que se desliza en horizontal, solo con los plazos enteros que faltan (4, 5, 7, 8, 10, 11 y 13 a 48); así no hay plazos inválidos que marcar. Cambia la decisión del 12 nov. `↓` desde la primera fila elige el último plazo usado abajo (4 al principio), `←` `→` eligen sin dar la vuelta y `↑` regresa a `Sin MSI` sin cambiar el plazo elegido. Se descartó una barra deslizante: 46 posiciones en el ancho de un celular son unos 7 px por mes, difícil de atinar con el dedo. |
 | 2026-11-14 | Desde el celular la app se abre por HTTP en la IP local, que no es un contexto seguro: el frontend no usa APIs que lo exijan (`crypto.randomUUID` rompía el guardado). El ID temporal del guardado optimista es un contador local, porque nunca se manda a la API. El service worker de la PWA también exige HTTPS, así que para probarla en el celular hará falta HTTPS local (se resuelve con la tarea de PWA del bloque A). |
+| 2026-11-14 | El jueves 19 nov se suma como día extra de trabajo dentro de la semana de ausencia. Se dedica a editar, borrar y deshacer desde la lista, que pasa del 14 al 19 (propuesta abajo, en el bloque A, pendiente de aprobar). |
 
 ## Resumen
 
@@ -464,7 +465,7 @@ Para retomar en una sesión nueva:
 
 Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de noviembre; el martes 24 trabaja medio día. Los domingos son de descanso. Quedan unos 17.5 días de trabajo; el domingo 13 de diciembre queda como colchón y día de lanzamiento.
 
-**Bloque A · Uso diario · sáb 14, mar 24 (medio día), mié 25 y jue 26 nov**
+**Bloque A · Uso diario · sáb 14, jue 19 (día extra), mar 24 (medio día), mié 25 y jue 26 nov**
 
 - [x] Prueba en el celular por la red local (2026-11-14: carga y validaciones bien; se corrigieron el guardado, que fallaba por `crypto.randomUUID` sin HTTPS, y el contable que parecía llenarse al escribir el monto, y "Otro plazo" pasó a una fila de botones)
 - [ ] Editar, borrar y deshacer desde la lista de movimientos
@@ -473,7 +474,19 @@ Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de novi
 - [ ] PWA instalable con íconos y pantalla de inicio
 - [ ] Desde el vie 27, usar la app con tus datos reales en lugar del Excel y anotar fricciones
 
-Antes de salir el 14, dejar un commit limpio: prueba en el celular y editar, borrar y deshacer desde la lista.
+**Estado al cerrar la sesión del 2026-11-14:** plan de la v1 replaneado y prueba en el celular hecha, con tres correcciones (commits `b6402a2`, `2d9820d` y `9220800`). 52 pruebas de frontend en verde. Respaldo de la BD al cerrar: `backups/budget-2026-11-14-close.dump` (incluye lo capturado desde el celular).
+
+Para retomar el jueves 19:
+
+1. Pedir aprobación de la propuesta de editar, borrar y deshacer desde la lista (preparada el 14):
+   - Backend: agregar `installment_plan_id` (opcional) a `MovementRead`, para que la interfaz sepa que una compra a MSI no se edita sin esperar el 409. Una prueba y `npm run api:types`.
+   - Tocar una fila (o `Enter` sobre ella) abre "Editar movimiento" en el mismo panel que la captura. Gasto o ingreso: monto, contable (modo ahorro), fecha, descripción, categoría y apartado (gastos en modo ahorro). Transferencia o pago de tarjeta: monto, fecha y descripción. Compra a MSI: solo lectura, con nota de que adelantar o liquidar llega en la v1, y solo se puede borrar. Cuenta y tipo no se editan (el panel lo explica).
+   - En modo ahorro, al terminar de editar el monto se pide el contable propuesto a `POST /movements/preview`; si no, el backend regresaría el contable al real.
+   - Borrar desde el panel: la fila desaparece al instante (optimista) y un aviso "Movimiento borrado · Deshacer" dura unos 8 s; deshacer llama a `restore` y, si responde 409 (límite de crédito), muestra los pasos de corrección. Sin confirmación previa.
+   - Errores del backend al guardar (por ejemplo el 422 del límite de crédito) en rojo dentro del panel, sin cerrarlo.
+   - Fuera por ahora: advertencias de nivel 1 y 2 al editar (el preview contaría dos veces el monto anterior), edición optimista y atajos `E` / `Supr` (fase 2).
+   - Pruebas en Vitest: editar un gasto, borrar y deshacer, compra a MSI en solo lectura; en el backend, el campo nuevo.
+2. Antes de abrir la app, arrancar Docker Desktop (estaba apagado el 14) y `docker compose up -d`.
 
 **Bloque B · Usuarios y CI · vie 27, sáb 28, lun 30 nov y mar 1 dic**
 
