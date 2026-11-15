@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-14
+Última actualización: 2026-11-15
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -82,6 +82,8 @@
 | 2026-11-14 | Selector de MSI: "Otro plazo" deja de ser un campo de texto y pasa a una fila de botones que se desliza en horizontal, solo con los plazos enteros que faltan (4, 5, 7, 8, 10, 11 y 13 a 48); así no hay plazos inválidos que marcar. Cambia la decisión del 12 nov. `↓` desde la primera fila elige el último plazo usado abajo (4 al principio), `←` `→` eligen sin dar la vuelta y `↑` regresa a `Sin MSI` sin cambiar el plazo elegido. Se descartó una barra deslizante: 46 posiciones en el ancho de un celular son unos 7 px por mes, difícil de atinar con el dedo. |
 | 2026-11-14 | Desde el celular la app se abre por HTTP en la IP local, que no es un contexto seguro: el frontend no usa APIs que lo exijan (`crypto.randomUUID` rompía el guardado). El ID temporal del guardado optimista es un contador local, porque nunca se manda a la API. El service worker de la PWA también exige HTTPS, así que para probarla en el celular hará falta HTTPS local (se resuelve con la tarea de PWA del bloque A). |
 | 2026-11-14 | El jueves 19 nov se suma como día extra de trabajo dentro de la semana de ausencia. Se dedica a editar, borrar y deshacer desde la lista, que pasa del 14 al 19 (propuesta abajo, en el bloque A, pendiente de aprobar). |
+| 2026-11-15 | Se aprueba la propuesta de editar, borrar y deshacer desde la lista y se implementa el domingo 15 (se adelanta del jueves 19). Las pruebas en el navegador quedan para el jueves 19, junto con la pantalla de apartados. |
+| 2026-11-15 | Si el límite de crédito impide deshacer un borrado, el paso 2 de la corrección manual en la interfaz dice "captura de nuevo esta compra" en lugar de "restaura esta compra": cerrado el aviso de deshacer, la interfaz no tiene cómo restaurar un movimiento borrado. El mensaje del backend no cambia. |
 
 ## Resumen
 
@@ -468,7 +470,7 @@ Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de novi
 **Bloque A · Uso diario · sáb 14, jue 19 (día extra), mar 24 (medio día), mié 25 y jue 26 nov**
 
 - [x] Prueba en el celular por la red local (2026-11-14: carga y validaciones bien; se corrigieron el guardado, que fallaba por `crypto.randomUUID` sin HTTPS, y el contable que parecía llenarse al escribir el monto, y "Otro plazo" pasó a una fila de botones)
-- [ ] Editar, borrar y deshacer desde la lista de movimientos
+- [x] Editar, borrar y deshacer desde la lista de movimientos (2026-11-15: commits `c49d5c4` y `93cd741`; falta probarlo en el navegador el jueves 19)
 - [ ] Pantalla de apartados (crear, editar, borrar y pagar)
 - [ ] Liberar sobrante desde la interfaz (y deshacer)
 - [ ] PWA instalable con íconos y pantalla de inicio
@@ -476,17 +478,13 @@ Replaneado el 2026-11-14. El usuario no trabaja del lunes 16 al lunes 23 de novi
 
 **Estado al cerrar la sesión del 2026-11-14:** plan de la v1 replaneado y prueba en el celular hecha, con tres correcciones (commits `b6402a2`, `2d9820d` y `9220800`). 52 pruebas de frontend en verde. Respaldo de la BD al cerrar: `backups/budget-2026-11-14-close.dump` (incluye lo capturado desde el celular).
 
+**Estado al cerrar la sesión del 2026-11-15:** editar, borrar y deshacer desde la lista está implementado (se adelantó del jueves 19): `installment_plan_id` en `MovementRead` (subconsulta en el mismo `SELECT`), panel de edición, compra a MSI en solo lectura, borrado optimista con aviso de deshacer de 8 s y los pasos de corrección si el límite de crédito impide deshacer. 147 pruebas de backend y 57 de frontend en verde.
+
 Para retomar el jueves 19:
 
-1. Pedir aprobación de la propuesta de editar, borrar y deshacer desde la lista (preparada el 14):
-   - Backend: agregar `installment_plan_id` (opcional) a `MovementRead`, para que la interfaz sepa que una compra a MSI no se edita sin esperar el 409. Una prueba y `npm run api:types`.
-   - Tocar una fila (o `Enter` sobre ella) abre "Editar movimiento" en el mismo panel que la captura. Gasto o ingreso: monto, contable (modo ahorro), fecha, descripción, categoría y apartado (gastos en modo ahorro). Transferencia o pago de tarjeta: monto, fecha y descripción. Compra a MSI: solo lectura, con nota de que adelantar o liquidar llega en la v1, y solo se puede borrar. Cuenta y tipo no se editan (el panel lo explica).
-   - En modo ahorro, al terminar de editar el monto se pide el contable propuesto a `POST /movements/preview`; si no, el backend regresaría el contable al real.
-   - Borrar desde el panel: la fila desaparece al instante (optimista) y un aviso "Movimiento borrado · Deshacer" dura unos 8 s; deshacer llama a `restore` y, si responde 409 (límite de crédito), muestra los pasos de corrección. Sin confirmación previa.
-   - Errores del backend al guardar (por ejemplo el 422 del límite de crédito) en rojo dentro del panel, sin cerrarlo.
-   - Fuera por ahora: advertencias de nivel 1 y 2 al editar (el preview contaría dos veces el monto anterior), edición optimista y atajos `E` / `Supr` (fase 2).
-   - Pruebas en Vitest: editar un gasto, borrar y deshacer, compra a MSI en solo lectura; en el backend, el campo nuevo.
-2. Antes de abrir la app, arrancar Docker Desktop (estaba apagado el 14) y `docker compose up -d`.
+1. Antes de abrir la app, arrancar Docker Desktop y `docker compose up -d`.
+2. Probar en el navegador: editar un gasto en modo simple y en modo ahorro (el contable propuesto al cambiar el monto), editar una transferencia, abrir una compra a MSI, borrar y deshacer, y el flujo con teclado (`Tab` hasta una fila, `Enter`, `Ctrl+Enter`). Probar también en el celular.
+3. Proponer la pantalla de apartados (crear, editar, borrar y pagar).
 
 **Bloque B · Usuarios y CI · vie 27, sáb 28, lun 30 nov y mar 1 dic**
 
