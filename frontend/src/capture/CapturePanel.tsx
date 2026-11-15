@@ -34,7 +34,7 @@ const tabs: { type: CaptureType; label: string }[] = [
 const SPENDING = new Set<Account['type']>(['debit', 'cash', 'credit'])
 const MONEY_SOURCES = new Set<Account['type']>(['debit', 'cash'])
 
-// MSI terms shown first (docs/PLANEACION.md); any term from 3 to 48 can be typed below them.
+// MSI terms shown first (docs/PLANEACION.md); the rest, from 3 to 48, in a scrolling row below.
 // '' is "Sin MSI", the one chosen when the field is reached
 const MONTH_OPTIONS = [
   { value: '', label: 'Sin MSI' },
@@ -45,6 +45,10 @@ const MONTH_OPTIONS = [
 ]
 const MIN_MONTHS = 3
 const MAX_MONTHS = 48
+// Buttons, not a typed field: only whole terms in range can be chosen
+const OTHER_MONTHS = Array.from({ length: MAX_MONTHS - MIN_MONTHS + 1 }, (_, index) =>
+  String(MIN_MONTHS + index),
+).filter((value) => !MONTH_OPTIONS.some((item) => item.value === value))
 
 const LAST_ACCOUNT_KEY = 'capture.lastAccountId'
 
@@ -86,13 +90,9 @@ function pick(choices: readonly Account[], id: string | null): string {
   return choices.find((account) => account.id === id)?.id ?? choices.at(0)?.id ?? ''
 }
 
-/** "12" -> 12; null for an empty field. NaN for anything outside 3 to 48. */
+/** The chosen term: "12" -> 12; null for Sin MSI. */
 function parseMonths(text: string): number | null {
-  const value = text.trim()
-  if (value === '') return null
-  return /^\d+$/.test(value) && Number(value) >= MIN_MONTHS && Number(value) <= MAX_MONTHS
-    ? Number(value)
-    : Number.NaN
+  return text === '' ? null : Number(text)
 }
 
 interface PreviewContext {
@@ -117,7 +117,7 @@ function previewRequest(
   if (amount === null || isTransfer || !context.sourceId) return null
   if (!context.savingsMode && !context.cardExpense) return null
   const months = context.cardExpense ? parseMonths(monthsText) : null
-  const installments = months !== null && !Number.isNaN(months)
+  const installments = months !== null
   return {
     account_id: context.sourceId,
     type: context.type === 'income' ? 'income' : 'expense',
@@ -201,9 +201,8 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const [accountingText, setAccountingText] = useState<string | null>(null)
   const [chosenSource, setChosenSource] = useState<string | null>(readLastAccount)
   const [chosenDestination, setChosenDestination] = useState<string | null>(null)
-  // The chosen MSI term ('' = Sin MSI); a typed "other term" lands here when it's complete
+  // The chosen MSI term ('' = Sin MSI), from either row of buttons
   const [monthsText, setMonthsText] = useState('')
-  const [otherMonthsText, setOtherMonthsText] = useState('')
   // What the preview was asked for: the typed texts once they're complete (Enter or leaving
   // the field), not on every key
   const [committedAmountText, setCommittedAmountText] = useState('')
@@ -236,10 +235,10 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
   const savingsMode = preferences.data?.mode === 'savings'
   const isTransfer = type === 'transfer' || type === 'card_payment'
   const cardExpense = type === 'expense' && source?.type === 'credit'
-  // While an "other term" is typed it counts already, so saving right away uses it
-  const liveMonthsText = otherMonthsText.trim() !== '' ? otherMonthsText : monthsText
-  const months = cardExpense ? parseMonths(liveMonthsText) : null
-  const isInstallments = months !== null && !Number.isNaN(months)
+  const months = cardExpense ? parseMonths(monthsText) : null
+  const isInstallments = months !== null
+  // A term from the lower row: the upper buttons are all unchosen
+  const otherTermChosen = OTHER_MONTHS.includes(monthsText)
   const pendingCommitments = (commitments.data ?? []).filter((c) => c.paid_by_movement_id === null)
   const showAccounting = savingsMode && !isTransfer && !isInstallments
   const showCommitment =
@@ -259,7 +258,7 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     commitmentId: showCommitment && commitmentId ? commitmentId : null,
   }
   // Exactly what's on screen: what saving checks
-  const previewBody = previewRequest(context, amountText, accountingText, liveMonthsText)
+  const previewBody = previewRequest(context, amountText, accountingText, monthsText)
   const previewKey = previewBody && JSON.stringify(previewBody)
   // What the preview is asked for: the completed texts. Lists and buttons count right away
   const committedBody = previewRequest(
@@ -324,28 +323,20 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       ?.focus()
   }
 
-  function focusOtherMonths() {
-    formRef.current?.querySelector<HTMLElement>('[data-months-other]')?.focus()
-  }
-
   function focusMonthsOption(value: string) {
     formRef.current?.querySelector<HTMLElement>(`[data-months-option="${value}"]`)?.focus()
   }
 
   // The preview is asked for once a text is complete: Enter, Ctrl+Enter or leaving the field
-  function commitOtherMonths() {
-    if (otherMonthsText.trim() !== '') setMonthsText(otherMonthsText)
-  }
-
   function commitTexts() {
     setCommittedAmountText(amountText)
     setCommittedAccountingText(accountingText)
-    commitOtherMonths()
   }
 
-  function chooseMonths(value: string) {
+  /** Chooses a term and moves the focus to its button, as the arrows do. */
+  function moveToMonths(value: string) {
     setMonthsText(value)
-    setOtherMonthsText('')
+    focusMonthsOption(value)
   }
 
   function chooseType(next: CaptureType) {
@@ -362,7 +353,6 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     setChosenSource(readLastAccount())
     setChosenDestination(null)
     setMonthsText('')
-    setOtherMonthsText('')
     setCommittedAmountText('')
     setCommittedAccountingText(null)
     setCategoryId('')
@@ -383,8 +373,6 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     }
   }
 
-  const monthsError = `Los meses sin intereses van de ${String(MIN_MONTHS)} a ${String(MAX_MONTHS)}.`
-
   async function save() {
     setSaved(false)
     setUnreviewed(null)
@@ -392,11 +380,6 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
     if (amount === null) {
       setError('Escribe un monto mayor a 0, con hasta 2 decimales.')
       focusField('amount')
-      return
-    }
-    if (months !== null && Number.isNaN(months)) {
-      setError(monthsError)
-      focusOtherMonths()
       return
     }
     if (showAccounting && accountingText !== null && accountingText.trim() !== '') {
@@ -492,27 +475,34 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       tabRefs.current.get(next)?.focus()
       return
     }
-    // MSI buttons: ← → choose like the type tabs (no wrapping), ↓ goes to "other term"
+    // MSI buttons: ← → choose within a row like the type tabs (no wrapping). ↓ goes to the
+    // row of other terms, choosing the last one picked there (4 at first); ↑ goes back up to
+    // Sin MSI without changing the term
     const option = target.dataset.monthsOption
-    if (option !== undefined && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
-      event.preventDefault()
-      const at = MONTH_OPTIONS.findIndex((item) => item.value === option)
-      const index = Math.min(Math.max(at + (event.key === 'ArrowRight' ? 1 : -1), 0), 4)
-      const next = MONTH_OPTIONS[index].value
-      chooseMonths(next)
-      focusMonthsOption(next)
-      return
-    }
-    if (option !== undefined && event.key === 'ArrowDown') {
-      event.preventDefault()
-      focusOtherMonths()
-      return
-    }
-    const inOtherMonths = target.dataset.monthsOther !== undefined
-    if (inOtherMonths && event.key === 'ArrowUp') {
-      event.preventDefault()
-      focusField('months')
-      return
+    if (option !== undefined) {
+      const row = OTHER_MONTHS.includes(option)
+        ? OTHER_MONTHS
+        : MONTH_OPTIONS.map((item) => item.value)
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        const at = row.indexOf(option)
+        const index = Math.min(
+          Math.max(at + (event.key === 'ArrowRight' ? 1 : -1), 0),
+          row.length - 1,
+        )
+        moveToMonths(row[index])
+        return
+      }
+      if (event.key === 'ArrowDown' && row !== OTHER_MONTHS) {
+        event.preventDefault()
+        moveToMonths(otherTermChosen ? monthsText : OTHER_MONTHS[0])
+        return
+      }
+      if (event.key === 'ArrowUp' && row === OTHER_MONTHS) {
+        event.preventDefault()
+        focusMonthsOption('')
+        return
+      }
     }
     if (event.key !== 'Enter') return
     event.preventDefault()
@@ -532,11 +522,6 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
       } else {
         void save()
       }
-      return
-    }
-    if (inOtherMonths && months !== null && Number.isNaN(months)) {
-      // An invalid term stays to be fixed; an empty one keeps the button chosen above
-      setError(monthsError)
       return
     }
     const next = ahead.at(0)
@@ -628,7 +613,8 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            placeholder={amount ?? '0.00'}
+            // No placeholder: echoing the amount being typed looked like the suggestion filling
+            // in on every key. The suggestion shows up once the amount is complete
             value={accountingValue}
             onChange={(event) => {
               setAccountingText(event.target.value)
@@ -669,57 +655,71 @@ function CaptureForm({ accounts }: { accounts: readonly Account[] }) {
           <p id="months-label" className={labelClass}>
             Meses sin intereses
           </p>
-          <div role="radiogroup" aria-labelledby="months-label" className="mt-1 flex gap-2">
-            {/* Phones: the buttons fill the width and are tall enough for a finger */}
-            {MONTH_OPTIONS.map((item) => {
-              // A typed "other term" leaves no button chosen
-              const chosen = otherMonthsText.trim() === '' && monthsText === item.value
-              // Roving focus, like the type tabs: Tab lands on the chosen one (or Sin MSI)
-              const focusable =
-                chosen ||
-                (item.value === '' && !MONTH_OPTIONS.some((other) => other.value === monthsText))
-              return (
-                <button
-                  key={item.value}
-                  data-field="months"
-                  data-months-option={item.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={chosen}
-                  tabIndex={focusable ? 0 : -1}
-                  onClick={() => {
-                    chooseMonths(item.value)
-                  }}
-                  className={`flex-1 rounded-full px-2 py-2 text-sm whitespace-nowrap focus:ring-2 focus:ring-sky-500 focus:outline-none sm:flex-none sm:px-3 sm:py-1 ${
-                    chosen
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              )
-            })}
+          {/* One group for both rows: a single term is chosen, and Tab stops once, on it */}
+          <div role="radiogroup" aria-labelledby="months-label">
+            <div className="mt-1 flex gap-2">
+              {/* Phones: the buttons fill the width and are tall enough for a finger */}
+              {MONTH_OPTIONS.map((item) => {
+                const chosen = monthsText === item.value
+                return (
+                  <button
+                    key={item.value}
+                    data-field="months"
+                    data-months-option={item.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen}
+                    // Roving focus, like the type tabs
+                    tabIndex={chosen ? 0 : -1}
+                    onClick={() => {
+                      setMonthsText(item.value)
+                    }}
+                    className={`flex-1 rounded-full px-2 py-2 text-sm whitespace-nowrap focus:ring-2 focus:ring-sky-500 focus:outline-none sm:flex-none sm:px-3 sm:py-1 ${
+                      chosen
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p id="months-other-label" className="mt-2 text-xs text-slate-500">
+              Otro plazo
+            </p>
+            {/* Swiped sideways on phones; focusing a button scrolls it into view */}
+            <div
+              role="group"
+              aria-labelledby="months-other-label"
+              className="mt-1 flex snap-x gap-2 overflow-x-auto pb-1"
+            >
+              {OTHER_MONTHS.map((value) => {
+                const chosen = monthsText === value
+                return (
+                  <button
+                    key={value}
+                    data-field="months"
+                    data-months-option={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen}
+                    tabIndex={chosen ? 0 : -1}
+                    onClick={() => {
+                      setMonthsText(value)
+                    }}
+                    className={`min-w-10 shrink-0 snap-start rounded-full px-2 py-2 text-sm tabular-nums focus:ring-2 focus:ring-sky-500 focus:outline-none focus:ring-inset sm:py-1 ${
+                      chosen
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white text-slate-600 ring-1 ring-slate-200 ring-inset hover:bg-slate-100'
+                    }`}
+                  >
+                    {value}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <label className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            Otro plazo ({MIN_MONTHS} a {MAX_MONTHS})
-            <input
-              data-field="months"
-              data-months-other
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              value={otherMonthsText}
-              onChange={(event) => {
-                setOtherMonthsText(event.target.value)
-                // Emptied: back to Sin MSI
-                if (event.target.value.trim() === '') setMonthsText('')
-              }}
-              onBlur={commitOtherMonths}
-              // text-base on phones: iOS zooms in on fields with text under 16 px
-              className="w-16 rounded-lg border-0 bg-white px-2 py-1 text-base text-slate-900 tabular-nums ring-1 ring-slate-300 focus:ring-2 focus:ring-sky-500 sm:text-sm"
-            />
-          </label>
           {isInstallments && current?.first_installment && (
             <p className="mt-2 text-xs text-slate-500">
               {months} mensualidades; la primera de {money(current.first_installment.amount)}

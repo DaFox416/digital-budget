@@ -209,7 +209,7 @@ describe('Capture warnings and MSI', () => {
     expect(await posted(mock, '/api/v1/movements')).toEqual([])
   })
 
-  it('picks the MSI term with the arrows, or types another one below', async () => {
+  it('picks the MSI term with the arrows, or another one from the row below', async () => {
     const { mock } = stubApi({
       ...homeRoutes,
       'POST /api/v1/installment-plans': jsonResponse({}, 201),
@@ -227,13 +227,18 @@ describe('Capture warnings and MSI', () => {
     await userEvent.keyboard('{Enter}')
     expect(within(panel).getByLabelText('Categoría')).toHaveFocus()
 
-    // ↓ to "other term": 50 is out of range and stays; 18 is saved
+    // ↓ chooses the first other term (4), → the next one (5); ↑ goes back up keeping it
     await userEvent.click(within(panel).getByRole('radio', { name: '6' }))
-    await userEvent.keyboard('{ArrowDown}50{Enter}')
-    expect(within(panel).getByRole('alert')).toHaveTextContent('van de 3 a 48')
-    expect(within(panel).getByLabelText(/Otro plazo/)).toHaveFocus()
-    await userEvent.clear(within(panel).getByLabelText(/Otro plazo/))
-    await userEvent.keyboard('18{Control>}{Enter}{/Control}{Enter}')
+    await userEvent.keyboard('{ArrowDown}')
+    expect(within(panel).getByRole('radio', { name: '4' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}{ArrowUp}')
+    expect(within(panel).getByRole('radio', { name: 'Sin MSI' })).toHaveFocus()
+    expect(within(panel).getByRole('radio', { name: '5' })).toBeChecked()
+    expect(within(panel).getByRole('radio', { name: '6' })).not.toBeChecked()
+
+    // A tap on any term of the row (18 here) is saved
+    await userEvent.click(within(panel).getByRole('radio', { name: '18' }))
+    await userEvent.keyboard('{Control>}{Enter}{/Control}{Enter}')
 
     expect(await within(panel).findByRole('status')).toHaveTextContent('Guardado')
     expect(await posted(mock, '/api/v1/installment-plans')).toEqual([
