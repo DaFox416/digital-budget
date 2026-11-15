@@ -12,8 +12,14 @@ export function isPendingId(id: string): boolean {
   return id.startsWith(PENDING_PREFIX)
 }
 
+let pendingCount = 0
+
+// Only tells pending rows apart in the cache and is never sent to the API, so a counter is
+// enough. Not crypto.randomUUID(): browsers only offer it on HTTPS or localhost, and the
+// phone opens the app by its LAN address over plain HTTP
 function pendingId(): string {
-  return `${PENDING_PREFIX}${crypto.randomUUID()}`
+  pendingCount += 1
+  return `${PENDING_PREFIX}${String(Date.now())}-${String(pendingCount)}`
 }
 
 // Only a sign in front of the typed amount: no arithmetic on money
