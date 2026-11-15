@@ -848,6 +848,8 @@ export interface components {
             transfer_group_id: string | null;
             /** Commitment Id */
             commitment_id: string | null;
+            /** Installment Plan Id */
+            installment_plan_id: string | null;
             /**
              * Created At
              * Format: date-time

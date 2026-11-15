@@ -38,6 +38,7 @@ function pendingMovement(fields: Partial<Movement> & Pick<Movement, 'account_id'
     category_id: null,
     transfer_group_id: null,
     commitment_id: null,
+    installment_plan_id: null,
     created_at: new Date().toISOString(),
     ...fields,
   }

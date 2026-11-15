@@ -9,12 +9,14 @@ from sqlalchemy import (
     Index,
     String,
     UniqueConstraint,
+    select,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, column_property, declared_attr, mapped_column
 
 from app.domain.enums import MovementType
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum
+from app.models.installment_plan import InstallmentPlan
 
 _TRANSFER_TYPES_SQL = "type IN ('transfer', 'card_payment')"
 
@@ -68,3 +70,17 @@ class Movement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     commitment_id: Mapped[uuid.UUID | None]
     # Soft delete: movements are never physically deleted
     deleted_at: Mapped[datetime | None]
+
+    @declared_attr
+    def installment_plan_id(cls) -> Mapped[uuid.UUID | None]:
+        """The MSI plan whose purchase this expense is, or None. Read-only.
+
+        A correlated subquery in the same SELECT as the movement, so listing movements
+        doesn't run one extra query per row.
+        """
+        return column_property(
+            select(InstallmentPlan.id)
+            .where(InstallmentPlan.movement_id == cls.id)
+            .correlate_except(InstallmentPlan)
+            .scalar_subquery()
+        )

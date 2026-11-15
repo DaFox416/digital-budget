@@ -75,6 +75,8 @@ class MovementRead(BaseModel):
     category_id: uuid.UUID | None
     transfer_group_id: uuid.UUID | None
     commitment_id: uuid.UUID | None
+    # Set when this expense is an MSI purchase, which can't be edited (PATCH responds 409)
+    installment_plan_id: uuid.UUID | None
     created_at: datetime
 
 

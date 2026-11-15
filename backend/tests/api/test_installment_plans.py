@@ -92,6 +92,18 @@ class TestCreatePlan:
         assert movements[0]["accounting_amount"] == "0.00"
         assert movements[0]["description"] == "Laptop"
 
+    def test_movements_say_which_plan_they_belong_to(self, client: TestClient) -> None:
+        card = create_account(client, "TDC Oro", type="credit")
+        plan = post_plan(client, card["id"], "1000", 3).json()
+        post_movement(client, card["id"], "expense", "200", "2026-11-20")
+
+        movements = client.get("/api/v1/movements").json()
+
+        plan_ids = {
+            movement["real_amount"]: movement["installment_plan_id"] for movement in movements
+        }
+        assert plan_ids == {"-1000.00": plan["id"], "-200.00": None}
+
     def test_only_credit_cards(self, client: TestClient) -> None:
         bbva = create_account(client, "BBVA")
 
