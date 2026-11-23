@@ -58,6 +58,15 @@ Se completarán conforme se cree la estructura (levantar con Docker, migraciones
 - El archivo se genera dentro del contenedor y se copia con `docker compose cp`: el formato `custom` es binario y la redirección `>` de PowerShell lo puede corromper.
 - En Git Bash, anteponer `MSYS_NO_PATHCONV=1` (o `export` una vez): MSYS convierte `/tmp/...` en una ruta de Windows. En PowerShell no hace falta.
 - Solo se respalda `budget`; `budget_test` se recrea sola.
+- Dos equipos (PC con Windows y laptop con Ubuntu), cada uno con su propia BD: al dejar uno, respaldar; al llegar al otro, restaurar ese respaldo antes de capturar. Si se captura en los dos, restaurar borra lo de uno.
+
+**Linux (laptop con Ubuntu)**: los comandos son los mismos salvo estos:
+
+- Docker Engine con el plugin de Compose (no Docker Desktop), según la guía oficial para Ubuntu. Usar `docker` sin `sudo`: `sudo usermod -aG docker $USER` y volver a iniciar sesión.
+- Respaldo y restauración: igual que arriba, sin `MSYS_NO_PATHCONV` (solo hace falta en Git Bash).
+- Venv del backend: `python3.12 -m venv .venv` y `.venv/bin/python -m pip install -e ".[dev]"`; después `.venv/bin/python -m pytest`, `.venv/bin/python -m ruff check .`, `.venv/bin/python -m mypy app tests`, `.venv/bin/alembic upgrade head`, etc. (`.venv/bin/` en lugar de `.venv\Scripts\`).
+- pre-commit: `backend/.venv/bin/pre-commit install` y `backend/.venv/bin/pre-commit run --all-files`.
+- Las rutas usan `/` en lugar de `\`.
 
 **Backend** (desde `backend/`, con el venv `.venv` de Python 3.12):
 
