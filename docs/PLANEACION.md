@@ -1,6 +1,6 @@
 # Planeación: Digital Budget
 
-Última actualización: 2026-11-22
+Última actualización: 2026-11-23
 
 > **Para Claude (u otra sesión que retome el proyecto):** este archivo es la fuente de verdad de la planeación. Antes de proponer cambios, lee el "Registro de decisiones" y respeta lo ya resuelto. Si el usuario toma una decisión nueva, agrégala al registro con su fecha y actualiza la sección afectada. El usuario trabaja solo, quiere experiencia full stack para su CV y prefiere conversar en español.
 
@@ -88,10 +88,13 @@
 | 2026-11-22 | Horas de trabajo: los bloques de gamedev del horario semanal del usuario (hoja "Plan semanal"), unas 16.5 h por semana (lun y mar 3.5 h, mié a vie 2.5 h, sáb 2 h; domingo libre), en lugar de ~36 h. El horario está a prueba del 23 al 26 nov y el plan se ajusta después. Supuesto: sin trabajo el 24 y 25 dic ni el 31 dic y 1 ene. |
 | 2026-11-22 | Se mueve la fecha de la v1 en lugar de recortar alcance: **sábado 16 de enero de 2027** (antes 13 dic). Se mantiene el orden de recorte si algo se atrasa. |
 | 2026-11-22 | GitHub Actions se adelanta al bloque A (2–5 dic), antes del login: son unas 4 h y desde ahí cada push pasa por lint, tipos y pruebas. El uso con datos reales empieza el lunes 7 dic (antes el 27 nov): la app corre en la PC y durante el viaje no estaría disponible. |
+| 2026-11-23 | Pruebas en el navegador de editar, borrar y deshacer: sale un bug (al editar un gasto que paga un apartado, el contable propuesto no aparece al confirmar el nuevo monto). Las pruebas en el celular se posponen. |
+| 2026-11-23 | Cada sesión de gamedev cuenta como un día de trabajo del plan, aunque sea intensiva y más corta. Así, la v1 termina a más tardar el **domingo 20 de diciembre** (lanzamiento el sábado 19; el 20 es colchón). Cambia la decisión del 22 nov (16 ene). Quedan 19 sesiones del 24 nov al 19 dic. Se mantiene el orden de recorte. |
+| 2026-11-23 | Se agrega a la v1 un día para diseñar la captura rápida, con un modo de una mano que se use solo con el teclado numérico como panel principal (sábado 5 dic). Ese día se decide si la implementación entra en la v1 o queda para después. |
 
 ## Resumen
 
-Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en México (corte, fecha límite de pago y meses sin intereses) y que, en modo ahorro, distingue tu saldo real de tu dinero disponible. v1 lista para usuarios externos el 16 de enero de 2027 (2026-11-14: se quitó el demo del 13 de noviembre y la v1 se movió del 4 al 13 de diciembre; 2026-11-22: se movió al 16 de enero).
+Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en México (corte, fecha límite de pago y meses sin intereses) y que, en modo ahorro, distingue tu saldo real de tu dinero disponible. v1 lista para usuarios externos a más tardar el 20 de diciembre de 2026 (2026-11-14: se quitó el demo del 13 de noviembre y la v1 se movió del 4 al 13 de diciembre; 2026-11-22: se movió al 16 de enero; 2026-11-23: regresa al 20 de diciembre).
 
 **Objetivos**
 
@@ -101,13 +104,13 @@ Una webapp de finanzas personales que entiende cómo funcionan las tarjetas en M
 
 **Supuestos de trabajo**
 
-- Dedicación de unas 16.5 h por semana en los bloques de gamedev del horario semanal, de lunes a sábado (2026-11-22; antes ~6 h al día, 6 días a la semana).
+- Una sesión de gamedev por día, de lunes a sábado (unas 16.5 h por semana), y cada sesión cuenta como un día de trabajo del plan (2026-11-23; antes ~6 h al día, 6 días a la semana).
 - Un solo desarrollador, presupuesto cero, todo corre en local con Docker.
 - Moneda única: MXN. Sin conexión a bancos; los datos se capturan a mano.
 
 **Alcance**
 
-| | Hecho al 12 nov | v1 (16 ene) |
+| | Hecho al 12 nov | v1 (20 dic) |
 | --- | --- | --- |
 | Cuentas | Débito, efectivo, crédito y la cuenta Sobrante | + cuentas de ahorro con meta, archivar, reordenar, colores |
 | Movimientos | Gasto, ingreso, transferencia, pago de tarjeta | + editar, borrar y deshacer desde la lista (búsqueda, etiquetas y editar en lote, después de la v1) |
@@ -467,33 +470,49 @@ Para retomar en una sesión nueva:
 
 **Vie 13 · Demo** (2026-11-14: se quita; la prueba en el celular pasa al bloque A y los datos semilla y el video, al bloque D de la v1)
 
-## Plan a la v1 (14 nov 2026 – 16 ene 2027)
+## Plan a la v1 (14 nov – 20 dic 2026)
 
-Replaneado el 2026-11-14 y otra vez el 2026-11-22. Desde el 23 nov el proyecto usa los bloques de gamedev del horario semanal del usuario (hoja "Plan semanal"), que convive con el trabajo de Uber: lunes y martes 3.5 h (2.5 h fuertes y 1 h ligera), miércoles a viernes 2.5 h y sábado 2 h; los domingos son de descanso. Son unas 16.5 h por semana. Las horas ligeras se usan para pruebas manuales, documentación y bugs. El horario está a prueba: se evalúa del lunes 23 al jueves 26 y el plan se ajusta después.
+Replaneado el 2026-11-14, el 2026-11-22 y el 2026-11-23. Desde el 23 nov el proyecto usa los bloques de gamedev del horario semanal del usuario (hoja "Plan semanal"), que convive con el trabajo de Uber: lunes y martes 3.5 h (2.5 h fuertes y 1 h ligera), miércoles a viernes 2.5 h y sábado 2 h; los domingos son de descanso. Las horas ligeras se usan para pruebas manuales, documentación y bugs. Desde el 23 nov cada sesión cuenta como un día de trabajo del plan, aunque sea intensiva y más corta.
 
-Pendiente estimado al 22 nov: unas 95 h (A 14.5, B 22, C 35, D 24). Sin trabajo del viernes 27 nov al martes 1 dic (viaje), el 24 y 25 dic ni el 31 dic y 1 ene (supuesto, por confirmar).
+Quedan 19 sesiones del martes 24 nov al sábado 19 dic, sin trabajo del viernes 27 nov al martes 1 dic (viaje). El domingo 20 dic es colchón. El pendiente al 22 nov se estimó en unas 95 h a ~6 h por día (unos 16 días); con el bug del 23 nov y el día de diseño de la captura rápida, son unas 18 sesiones. La primera semana (24 al 26 nov) sirve para comprobar si una sesión rinde lo que un día del plan anterior; si no, se recorta en el orden de abajo.
 
-| Semana | Horas | Qué |
-| --- | --- | --- |
-| Lun 23 – jue 26 nov | 12 | Probar editar, borrar y deshacer; pantalla de apartados; liberar sobrante |
-| 27 nov – 1 dic | — | Viaje |
-| Mié 2 – sáb 5 dic | 9.5 | PWA con HTTPS local; CI con GitHub Actions; respaldo y carga de datos reales |
-| 7 – 12 dic | 16.5 | Registro y login (desde el lun 7, uso con datos reales) |
-| 14 – 19 dic | 16.5 | Aislar datos por usuario; arrastre de saldo; empezar metas de ahorro |
-| 21 – 26 dic | ~11.5 | Terminar metas de ahorro; adelantar o liquidar MSI |
-| 28 dic – 2 ene | ~11.5 | Apartados recurrentes; historial de Sobrante; pruebas de punta a punta del modo ahorro |
-| 4 – 9 ene | 16.5 | Playwright; correcciones del uso real; bienvenida; datos semilla |
-| 11 – 16 ene | ~7.5 + colchón | README y video; guía de deploy; lanzamiento el sábado 16 |
+| Sesión | Qué |
+| --- | --- |
+| Lun 23 nov | Pruebas en el navegador de editar, borrar y deshacer (hecho); replanear |
+| Mar 24 nov | Corregir el contable al editar un gasto que paga un apartado; empezar la pantalla de apartados |
+| Mié 25 nov | Pantalla de apartados (crear, editar, borrar y pagar) |
+| Jue 26 nov | Liberar sobrante desde la interfaz (y deshacer) |
+| 27 nov – 1 dic | Viaje |
+| Mié 2 dic | PWA instalable con HTTPS local |
+| Jue 3 dic | GitHub Actions: lint, tipos y pruebas en cada push |
+| Vie 4 dic | Pruebas en el celular (editar, borrar, deshacer, apartados, PWA); respaldo y carga de datos reales |
+| Sáb 5 dic | Diseñar la captura rápida y el modo de una mano con teclado numérico |
+| Lun 7 dic | Registro y login (1/2); empieza el uso con datos reales |
+| Mar 8 dic | Registro y login (2/2) |
+| Mié 9 dic | Aislar datos por usuario con pruebas |
+| Jue 10 dic | Arrastre de saldo no pagado (1/2) |
+| Vie 11 dic | Arrastre de saldo (2/2) y saldo inicial de la tarjeta |
+| Sáb 12 dic | Cuentas de ahorro con meta (1/2) |
+| Lun 14 dic | Cuentas de ahorro con meta (2/2) |
+| Mar 15 dic | Adelantar o liquidar MSI |
+| Mié 16 dic | Apartados recurrentes e historial de Sobrante |
+| Jue 17 dic | Pruebas de punta a punta del modo ahorro; Playwright |
+| Vie 18 dic | Correcciones del uso real; bienvenida; datos semilla |
+| Sáb 19 dic | README y video; guía de deploy; lanzamiento |
+| Dom 20 dic | Colchón (fecha máxima) |
 
-**Bloque A · Uso diario · lun 23 – jue 26 nov y mié 2 – sáb 5 dic**
+**Bloque A · Uso diario · lun 23 nov – sáb 5 dic**
 
 - [x] Prueba en el celular por la red local (2026-11-14: carga y validaciones bien; se corrigieron el guardado, que fallaba por `crypto.randomUUID` sin HTTPS, y el contable que parecía llenarse al escribir el monto, y "Otro plazo" pasó a una fila de botones)
 - [x] Editar, borrar y deshacer desde la lista de movimientos (2026-11-15: commits `c49d5c4` y `93cd741`)
-- [ ] Probar en el navegador y en el celular editar, borrar y deshacer (era del jueves 19, que no se usó)
+- [x] Probar en el navegador editar, borrar y deshacer (2026-11-23: sale el bug de abajo)
+- [ ] Probar en el celular editar, borrar y deshacer (se pospone al vie 4 dic)
+- [ ] Bug: al editar un gasto que paga un apartado, el contable propuesto no aparece al terminar de escribir el nuevo monto (al confirmarlo con `Enter` o al salir del campo)
 - [ ] Pantalla de apartados (crear, editar, borrar y pagar)
 - [ ] Liberar sobrante desde la interfaz (y deshacer)
 - [ ] PWA instalable con íconos y pantalla de inicio
 - [ ] GitHub Actions: lint, tipos y pruebas en cada push (se adelanta del bloque B el 2026-11-22)
+- [ ] Diseñar la captura rápida (sáb 5 dic): un modo de una mano que se use ágilmente solo con el teclado numérico como panel principal. Sale un plan para aprobar y se decide si la implementación entra en la v1
 - [ ] Desde el lun 7 dic, usar la app con tus datos reales en lugar del Excel y anotar fricciones
 
 **Estado al cerrar la sesión del 2026-11-14:** plan de la v1 replaneado y prueba en el celular hecha, con tres correcciones (commits `b6402a2`, `2d9820d` y `9220800`). 52 pruebas de frontend en verde. Respaldo de la BD al cerrar: `backups/budget-2026-11-14-close.dump` (incluye lo capturado desde el celular).
@@ -502,18 +521,20 @@ Pendiente estimado al 22 nov: unas 95 h (A 14.5, B 22, C 35, D 24). Sin trabajo 
 
 **Estado al 2026-11-22:** sin avances desde el 15 nov; `main` al día con GitHub. Se replaneó la v1 al 16 ene y se prepara una laptop como segundo equipo de trabajo.
 
-Para retomar el lunes 23:
+**Estado al cerrar la sesión del 2026-11-23:** pruebas en el navegador de editar, borrar y deshacer hechas, con un bug (el contable al editar un gasto que paga un apartado). Las pruebas en el celular pasan al vie 4 dic. La v1 se replaneó al 20 dic, a una sesión por día. Respaldo antes de las pruebas: `backups/budget-2026-11-23.dump` (en la PC).
 
-1. Antes de abrir la app, arrancar Docker Desktop y `docker compose up -d` (en el equipo donde se trabaje; si se cambia de equipo, traer el último respaldo).
-2. Probar en el navegador: editar un gasto en modo simple y en modo ahorro (el contable propuesto al cambiar el monto), editar una transferencia, abrir una compra a MSI, borrar y deshacer, y el flujo con teclado (`Tab` hasta una fila, `Enter`, `Ctrl+Enter`). Probar también en el celular.
-3. Proponer la pantalla de apartados (crear, editar, borrar y pagar).
+Para retomar el martes 24:
 
-**Bloque B · Usuarios · 7 – 19 dic**
+1. Arrancar Docker Desktop y `docker compose up -d` (si se cambia de equipo, traer el último respaldo).
+2. Reproducir y corregir el bug del contable con apartado al editar, con una prueba que lo cubra.
+3. Proponer la pantalla de apartados (crear, editar, borrar y pagar) y empezarla.
+
+**Bloque B · Usuarios · 7 – 9 dic**
 
 - [ ] Registro y login con contraseñas en Argon2 y JWT en cookie httpOnly (la migración conserva los datos del usuario local)
 - [ ] Aislar todos los datos por `user_id` con pruebas que lo verifiquen
 
-**Bloque C · Modo ahorro completo y tarjetas · 14 dic – 2 ene**
+**Bloque C · Modo ahorro completo y tarjetas · 10 – 17 dic**
 
 - [ ] Arrastre de saldo no pagado entre ciclos (límite de la regla 8) y saldo inicial de la tarjeta
 - [ ] Cuentas de ahorro con meta (depositar y retirar)
@@ -522,7 +543,7 @@ Para retomar el lunes 23:
 - [ ] Historial de la cuenta Sobrante
 - [ ] Pruebas de punta a punta del modo ahorro con tarjetas y MSI
 
-**Bloque D · Calidad y lanzamiento · 4 – 16 ene**
+**Bloque D · Calidad y lanzamiento · 17 – 20 dic**
 
 - [ ] Pruebas E2E con Playwright del flujo de captura en web y móvil
 - [ ] Corregir lo anotado en el uso real
@@ -531,11 +552,11 @@ Para retomar el lunes 23:
 - [ ] README de portafolio: arquitectura, decisiones, capturas, video
 - [ ] Dejar documentado el paso a deploy en un servicio con plan gratuito
 
-**Si algo se atrasa, se recorta en este orden:** historial de Sobrante, apartados recurrentes, adelantar o liquidar MSI (juntos, unas 14 h: la v1 quedaría alrededor del 9 ene). El arrastre de saldo, el login y las pruebas no se recortan.
+**Si algo se atrasa, se recorta en este orden:** historial de Sobrante, apartados recurrentes, adelantar o liquidar MSI (juntos, unas 2 sesiones). El arrastre de saldo, el login y las pruebas no se recortan.
 
 **Después de la v1:** búsqueda, etiquetas y editar en lote (salen de la v1 el 2026-11-14).
 
-**Después de la v1 · Fase 2 de captura:** diseñar a detalle la barra de comandos en web y los gestos táctiles en móvil, partiendo de la propuesta preliminar de este documento y de lo que aprendas usando la captura convencional.
+**Después de la v1 · Fase 2 de captura:** diseñar a detalle la barra de comandos en web y los gestos táctiles en móvil (el modo de una mano con teclado numérico se diseña antes, el 5 dic, dentro de la v1), partiendo de la propuesta preliminar de este documento y de lo que aprendas usando la captura convencional.
 
 ## Riesgos, decisiones abiertas y valor para el CV
 
